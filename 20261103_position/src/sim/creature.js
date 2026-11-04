@@ -9,7 +9,7 @@
 // Speeds come from the difficulty; fractions carry over between ticks.
 
 import { canSee } from './los.js';
-import { nodeXYL } from './world.js';
+import { nodeXYL, forEachNeighbour } from './world.js';
 
 export const CREATURE_MODES = {
   patrol: 'Wandering',
@@ -33,7 +33,7 @@ export function headingTo(ctx, a, b) {
 export function newCreature(node, facing) {
   return {
     node, facing, mode: 'patrol', target: null, budget: 0, frozenLeft: 0, searchLeft: 0,
-    heardAt: null, seesPlayer: false, lastSeen: null, sinceLook: 0,
+    heardAt: null, seesPlayer: false, lastSeen: null, sinceLook: 0, waitLeft: 0, still: 0, lastNode: node,
   };
 }
 
@@ -45,16 +45,45 @@ function moveTo(ctx, c, next) {
   return true;
 }
 
+// A target it can stand on: a cell that is not walkable (a tree, say) becomes the nearest walkable
+// cell next to it.
+export function standable(ctx, n) {
+  const { world } = ctx;
+  if (n !== null && world.walk[n] === 1) return n;
+  if (n === null) return null;
+  const { x, y } = nodeXYL(world, n);
+  let best = null;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const m = (y + dy) * world.W + (x + dx);
+    if (x + dx >= 0 && y + dy >= 0 && x + dx < world.W && y + dy < world.H && world.walk[m] === 1) { best = m; break; }
+  }
+  return best;
+}
+
+// Returns false when it cannot get any closer (so the caller can pick something else to do).
 function runToward(ctx, c, target, speed) {
+  if (target === null || c.node === target) { c.budget = 0; return true; }
   c.budget += speed;
-  let cells = 0;
   while (c.budget >= 1 && c.node !== target) {
     c.budget -= 1;
-    moveTo(ctx, c, ctx.pf.nextStep(c.node, target));
-    cells++;
+    const next = ctx.pf.nextStep(c.node, target);
+    if (next === c.node) { c.budget = 0; return false; }
+    moveTo(ctx, c, next);
   }
   if (c.node === target) c.budget = 0;
-  return cells;
+  return true;
+}
+
+// Circles around the spot where it knows you are (the foot of your tree), one cell at a time.
+function prowl(ctx, c, center, speed, rng) {
+  c.budget += speed;
+  if (c.budget < 1) return;
+  c.budget -= 1;
+  const options = [];
+  forEachNeighbour(ctx.world, c.node, (m) => { if (ctx.pf.distance(m, center) <= 2.5) options.push(m); });
+  if (options.length) moveTo(ctx, c, rng.pick(options));
+  const h = headingTo(ctx, c.node, center);
+  if (h !== null) c.facing = h;
 }
 
 function pickPatrolTarget(ctx, game, rng) {
@@ -109,6 +138,17 @@ export function creatureAct(ctx, game, rng) {
 
   c.seesPlayer = creatureSees(game);
   if (c.seesPlayer) c.lastSeen = me.node;
+  c.heardAt = standable(ctx, c.heardAt);
+  c.target = standable(ctx, c.target);
+
+  // never stand still for long without a reason: pick a new place to wander to
+  c.still = c.node === c.lastNode ? c.still + 1 : 0;
+  c.lastNode = c.node;
+  if (c.still > 24 && (c.mode === 'patrol' || c.mode === 'investigate' || c.mode === 'chase')) {
+    c.mode = 'patrol';
+    c.target = pickPatrolTarget(ctx, game, rng);
+    c.still = 0;
+  }
 
   const alarm = game.alarmLeft > 0;
   if (c.seesPlayer) {
@@ -134,30 +174,34 @@ export function creatureAct(ctx, game, rng) {
     if (me.carrying) {
       c.mode = 'ambush';
       c.target = ambushSpot(ctx, me.node);
+      c.waitLeft = 40;
       game.log('creature', 'ambush', 'The alarm stops. The creature heads to wait between you and the hospital.');
     } else { c.mode = 'search'; c.searchLeft = g.searchTicks; }
   }
 
   switch (c.mode) {
     case 'chase':
-      if (c.node === c.target) { c.mode = 'search'; c.searchLeft = g.searchTicks; return; }
-      runToward(ctx, c, c.target, sp.chase);
+      if (c.node === c.target || !runToward(ctx, c, c.target, sp.chase)) { c.mode = 'search'; c.searchLeft = g.searchTicks; }
       return;
     case 'track':
-      runToward(ctx, c, c.target, sp.track);
+      // close to you: if you are up a tree, it circles the tree; otherwise it comes straight on
+      if (me.inTree !== null && ctx.pf.distance(c.node, c.target) <= 2.5) prowl(ctx, c, c.target, sp.track, rng);
+      else if (!runToward(ctx, c, c.target, sp.track)) prowl(ctx, c, c.node, sp.track, rng);
       return;
     case 'investigate':
-      if (c.node === c.target) {
-        if (me.carrying) { c.mode = 'ambush'; c.target = ambushSpot(ctx, me.node); return; }
+      if (c.node === c.target || !runToward(ctx, c, c.target, sp.investigate)) {
+        if (me.carrying) { c.mode = 'ambush'; c.target = ambushSpot(ctx, me.node); c.waitLeft = 40; return; }
         c.mode = 'search';
         c.searchLeft = g.searchTicks;
-        return;
       }
-      runToward(ctx, c, c.target, sp.investigate);
       return;
     case 'ambush':
-      if (c.node === c.target) { c.facing += TURN; return; } // waits there, looking around
-      runToward(ctx, c, c.target, sp.investigate);
+      // waits there for a while, looking around, then goes back to wandering
+      if (c.node === c.target || !runToward(ctx, c, c.target, sp.investigate)) {
+        c.facing += TURN;
+        c.waitLeft--;
+        if (c.waitLeft <= 0) { c.mode = 'patrol'; c.target = null; }
+      }
       return;
     case 'search':
       c.facing += TURN;
@@ -170,6 +214,6 @@ export function creatureAct(ctx, game, rng) {
       if (c.target === null || c.node === c.target) c.target = pickPatrolTarget(ctx, game, rng);
       c.sinceLook++;
       if (c.sinceLook >= 6) { c.sinceLook = 0; c.facing += (rng.chance(0.5) ? 2 : -2) * TURN; return; }
-      runToward(ctx, c, c.target, sp.patrol);
+      if (!runToward(ctx, c, c.target, sp.patrol)) c.target = pickPatrolTarget(ctx, game, rng);
   }
 }

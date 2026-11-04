@@ -1,8 +1,8 @@
 // Wires the game to the page: keyboard, mouse and touch input, the tick loop, the 3D view, the
 // minimap, sound, the HUD and the start and end screens.
 //
-// Controls are kept to two things: move (arrow keys / WASD, or click where to go) and one action
-// key (Space) that does what fits: shoot, climb a tree, or climb down.
+// Controls: move (arrow keys / WASD, or click where to go), Space to shoot, E to climb a tree or
+// climb down. Two different keys, so you never hide when you meant to shoot or the other way round.
 
 import { CONFIG } from '../sim/config.js';
 import { makeContext } from '../sim/context.js';
@@ -38,7 +38,7 @@ const DIFF_NOTE = {
 const state = {
   ctx: null, game: null, seed: CONFIG.seed, round: 0, difficulty: 'easy',
   started: false, paused: false, acc: 0, last: 0, showRelations: true,
-  queued: { action: false }, goal: null, climbAtGoal: null, beepTick: 0,
+  queued: { shoot: false, climb: false }, goal: null, climbAtGoal: null, beepTick: 0,
 };
 const keys = new Set();
 const touch = { dx: 0, dy: 0 };
@@ -75,8 +75,10 @@ function input() {
   let dx = (k('KeyD', 'ArrowRight') ? 1 : 0) - (k('KeyA', 'ArrowLeft') ? 1 : 0);
   let dy = (k('KeyS', 'ArrowDown') ? 1 : 0) - (k('KeyW', 'ArrowUp') ? 1 : 0);
   if (!dx && !dy) { dx = touch.dx; dy = touch.dy; }
-  let action = state.queued.action;
-  state.queued.action = false;
+  const shoot = state.queued.shoot;
+  let climb = state.queued.climb;
+  state.queued.shoot = false;
+  state.queued.climb = false;
   if (dx || dy) { state.goal = null; state.climbAtGoal = null; }
   // clicked somewhere: walk there along the shortest path; clicked a tree: climb it on arrival
   if (!dx && !dy && state.goal !== null && g.player.inTree === null && g.player.busy === 0) {
@@ -85,7 +87,7 @@ function input() {
       if (state.climbAtGoal !== null && isAdjacent(g.ctx.world, g.player.node, state.climbAtGoal)) {
         g.player.facing = Math.atan2(Math.floor(state.climbAtGoal / g.ctx.world.W) - Math.floor(g.player.node / g.ctx.world.W),
           (state.climbAtGoal % g.ctx.world.W) - (g.player.node % g.ctx.world.W));
-        action = true;
+        climb = true;
       }
       state.climbAtGoal = null;
     } else {
@@ -93,7 +95,7 @@ function input() {
       ({ dx, dy } = directionTo(g.ctx.world, g.player.node, next));
     }
   }
-  return { dx, dy, action };
+  return { dx, dy, shoot, climb };
 }
 
 let lastKnown = -1;
@@ -190,7 +192,8 @@ window.addEventListener('keydown', (e) => {
   }
   keys.add(e.code);
   if (e.repeat) return;
-  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') state.queued.action = true;
+  if (e.code === 'Space') state.queued.shoot = true;
+  if (e.code === 'KeyE') state.queued.climb = true;
   if (e.code === 'KeyM') toggleMap();
   if (e.code === 'KeyP') togglePause();
 });
@@ -221,7 +224,7 @@ $('viewer').addEventListener('pointerdown', (e) => {
     state.goal = i;
     state.climbAtGoal = null;
   }
-  if (state.goal !== null && g.player.inTree !== null) state.queued.action = true; // come down first
+  if (state.goal !== null && g.player.inTree !== null) state.queued.climb = true; // come down first
   scene.markGoal?.(state.goal);
 });
 
@@ -234,7 +237,8 @@ document.querySelectorAll('#touch [data-dir]').forEach((b) => {
   b.addEventListener('pointerleave', off);
   b.addEventListener('pointercancel', off);
 });
-document.querySelector('#touch [data-act="action"]').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); state.queued.action = true; });
+document.querySelector('#touch [data-act="shoot"]').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); state.queued.shoot = true; });
+document.querySelector('#touch [data-act="climb"]').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); state.queued.climb = true; });
 
 // ---- controls --------------------------------------------------------------------
 function togglePause() {

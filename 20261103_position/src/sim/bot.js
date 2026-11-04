@@ -4,7 +4,7 @@
 // tree to hide when it is hunted and the case is not beeping.
 
 import { forEachNeighbour } from './world.js';
-import { directionTo, newRun, stepRun, actionFor } from './escape.js';
+import { directionTo, newRun, stepRun, actionsFor } from './escape.js';
 
 export function botInput(game, { skill = 1 } = {}) {
   const { world, pf } = game.ctx;
@@ -15,17 +15,17 @@ export function botInput(game, { skill = 1 } = {}) {
   const where = fresh ? me.knownCreature : null;
   const frozen = c.frozenLeft > 0 && me.seesCreature;
   const dC = where === null ? Infinity : pf.distance(me.node, where);
-  const input = { dx: 0, dy: 0, action: false };
-  const action = actionFor(game);
+  const input = { dx: 0, dy: 0, shoot: false, climb: false };
+  const acts = actionsFor(game);
 
   // in a tree: stay while it is close, come down when it has gone
   if (me.inTree !== null) {
-    if (!me.seesCreature || dC >= 7) input.action = true;
+    if (!me.seesCreature || dC >= 7) input.climb = true;
     return input;
   }
-  if (action === 'shoot' && dC <= 2 + skill * 1.5) { input.action = true; return input; }
-  if (action === 'climb' && !frozen && game.alarmLeft === 0 && where !== null && dC <= 4 && c.mode === 'chase') {
-    input.action = true;
+  if (acts.shoot && dC <= 2 + skill * 1.5) { input.shoot = true; return input; }
+  if (acts.climb === 'up' && !frozen && game.alarmLeft === 0 && where !== null && dC <= 4 && c.mode === 'chase') {
+    input.climb = true;
     return input;
   }
 

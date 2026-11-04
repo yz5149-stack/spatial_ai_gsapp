@@ -112,14 +112,13 @@ test('crows perch in trees apart from the case and caw once when you are next to
   assert.equal(g.crows.length, CONFIG.crows.count);
   for (const c of g.crows) assert.equal(ctx.world.ground[c.node], 1, 'a tree cell');
   const crow = g.crows[0];
-  const x = crow.node % ctx.world.W; const y = Math.floor(crow.node / ctx.world.W);
-  const beside = ctx.world.nodes.find((n) => Math.max(Math.abs((n % ctx.world.W) - x), Math.abs(Math.floor(n / ctx.world.W) - y)) === 1);
+  const beside = ctx.world.nodes.find((n) => isAdjacent(ctx.world, crow.node, n));
   g.player.node = beside;
   g.creature.node = beside; // right there: hears it for sure
   g.sounds = [];
   stepCrows(g);
   assert.equal(g.sounds.filter((s) => s.who === 'crow').length, 1);
-  assert.equal(g.creature.heardAt, crow.node);
+  assert.equal(g.creature.heardAt, beside, 'it comes to where the crow saw you');
   g.sounds = [];
   stepCrows(g);
   assert.equal(g.sounds.length, 0, 'resting after a caw');

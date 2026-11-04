@@ -44,6 +44,8 @@ export function makePlans(groundCanvas, canopyCanvas) {
             case G.TREE: mark = palette.tree; break;
             case G.BUSH: fill = palette.bush; break;
             case G.ROCK: fill = palette.rock; break;
+            case G.LOG: fill = '#5a4330'; break;
+            case G.CAR: fill = '#7a2622'; break;
             case G.WALL: fill = palette.wall; break;
             case G.LADDER: fill = palette.ladder; break;
             default: break;
@@ -57,6 +59,12 @@ export function makePlans(groundCanvas, canopyCanvas) {
             case C.LADDER: fill = palette.ladder; break;
             default: break;
           }
+        }
+        if (level === 0 && fill === palette.planFree && world.reserved) {
+          const v = world.reserved[i];
+          if (v === 1) fill = '#a6b2bf';       // the trail
+          else if (v === 2) fill = '#b5c0cc';  // side paths
+          else if (v === 3) fill = '#d4dfe9';  // clearings
         }
         g.fillStyle = fill;
         g.fillRect(x * cs, y * cs, cs + 0.5, cs + 0.5);

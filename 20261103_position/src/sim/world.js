@@ -5,7 +5,7 @@
 
 import { makeRng } from './rng.js';
 
-export const G = { FREE: 0, TREE: 1, BUSH: 2, ROCK: 3, WALL: 4, LADDER: 5 };
+export const G = { FREE: 0, TREE: 1, BUSH: 2, ROCK: 3, WALL: 4, LADDER: 5, LOG: 6, CAR: 7 };
 export const C = { AIR: 0, PLATFORM: 1, BRIDGE: 2, FOLIAGE: 3, LADDER: 5 };
 
 const DIRS8 = [
@@ -101,24 +101,112 @@ export function generateWorld(config, seed = config.seed) {
     }
   }
 
+  // --- The trail, the clearings and the car (a designed layout) -----------
+  // A winding trail runs from a broken-down car on the west side to the hospital door in the middle
+  // of the east wall. Side paths lead off it to small clearings. Obstacles stay off all of these.
+  const reserved = new Uint8Array(W * H);  // 1 trail, 2 side path, 3 clearing, 4 car
+  const clearings = [];
+  let car = null;
+  if (config.trail) {
+    const mid = Math.floor(H / 2);
+    const y0 = rng.int(4, H - 6);
+    const amp = 2 + rng.next() * 2.5;
+    const phase = rng.next() * Math.PI * 2;
+    const mark = (x, y, v) => { if (inner(x, y) && (!reserved[idx(x, y)] || v === 1)) reserved[idx(x, y)] = v; };
+    let prevY = null;
+    const x0 = 5;
+    for (let x = x0; x <= W - 2; x++) {
+      const t = (x - x0) / (W - 2 - x0);
+      const ease = t * t * (3 - 2 * t);
+      const y = Math.round(y0 + (mid - y0) * ease + amp * Math.sin(t * Math.PI * 2.2 + phase) * Math.sin(t * Math.PI));
+      const yc = Math.max(2, Math.min(H - 3, y));
+      if (prevY !== null) for (let k = Math.min(prevY, yc); k <= Math.max(prevY, yc); k++) { mark(x, k, 1); mark(x, k + 1, 1); }
+      mark(x, yc, 1); mark(x, yc + 1, 1);
+      prevY = yc;
+    }
+    // the car: 3 by 2 cells just west of where the trail starts, facing east along it
+    const cy = Math.max(2, Math.min(H - 4, y0));
+    car = { x: 2, y: cy, w: 3, h: 2 };
+    for (let y = cy; y < cy + 2; y++) for (let x = 2; x < 5; x++) reserved[idx(x, y)] = 4;
+    for (let y = cy - 1; y <= cy + 2; y++) mark(5, y, 1); // room to step out of the car
+    // clearings off the trail, joined to it by a side path
+    const trailCells = [];
+    for (let i = 0; i < W * H; i++) if (reserved[i] === 1) trailCells.push(i);
+    for (let k = 0; k < (config.clearings ?? 3) && trailCells.length; k++) {
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const from = rng.pick(trailCells);
+        const fx = from % W;
+        const fy = Math.floor(from / W);
+        if (fx < 9 || fx > W - 6) continue;
+        const dir = rng.chance(0.5) ? 1 : -1;
+        const dist = rng.int(4, 6);
+        const cx = fx + rng.int(-2, 2);
+        const cyy = fy + dir * dist;
+        const r = 2;
+        if (cyy - r < 1 || cyy + r > H - 2 || cx - r < 1 || cx + r > W - 2) continue;
+        if (clearings.some((c) => Math.hypot(c.x - cx, c.y - cyy) < 7)) continue;
+        for (let y = cyy - r; y <= cyy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
+          if (Math.hypot(x - cx, y - cyy) <= r + 0.3 && !reserved[idx(x, y)]) reserved[idx(x, y)] = 3;
+        }
+        // side path: straight from the trail cell to the clearing (vertical, then horizontal)
+        for (let y = Math.min(fy, cyy); y <= Math.max(fy, cyy); y++) mark(fx, y, 2);
+        for (let x = Math.min(fx, cx); x <= Math.max(fx, cx); x++) mark(x, cyy, 2);
+        clearings.push({ x: cx, y: cyy, r });
+        break;
+      }
+    }
+  }
+  const free = (x, y) => inner(x, y) && ground[idx(x, y)] === G.FREE && !reserved[idx(x, y)];
+
   // --- Ground obstacles ---------------------------------------------------
-  const placeGround = (x, y, type) => {
-    if (inner(x, y) && ground[idx(x, y)] === G.FREE) ground[idx(x, y)] = type;
-  };
-  for (let k = 0; k < config.treeCount; k++) placeGround(rng.int(1, W - 2), rng.int(1, H - 2), G.TREE);
+  const placeGround = (x, y, type) => { if (free(x, y)) ground[idx(x, y)] = type; };
+  if (config.trail) {
+    // forest: dense away from the trail, thinner next to it
+    const near = new Float32Array(W * H).fill(99);
+    for (let i = 0; i < W * H; i++) if (reserved[i]) near[i] = 0;
+    for (let pass = 0; pass < 4; pass++) {
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+        const i = idx(x, y);
+        near[i] = Math.min(near[i], near[i - 1] + 1, near[i + 1] + 1, near[i - W] + 1, near[i + W] + 1);
+      }
+    }
+    const cells = [];
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (free(x, y)) cells.push([x, y]);
+    const want = config.treeCount;
+    let placed = 0;
+    for (let round = 0; round < 6 && placed < want; round++) {
+      for (const [x, y] of cells) {
+        if (placed >= want || !free(x, y)) continue;
+        const d = near[idx(x, y)];
+        const p = d <= 1 ? 0.06 : d === 2 ? 0.2 : 0.34;
+        if (rng.next() < p) { ground[idx(x, y)] = G.TREE; placed++; }
+      }
+    }
+  } else {
+    for (let k = 0; k < config.treeCount; k++) placeGround(rng.int(1, W - 2), rng.int(1, H - 2), G.TREE);
+  }
   for (let k = 0; k < config.bushRows; k++) {
-    const len = rng.int(3, 7);
+    const len = rng.int(2, 5);
     const horizontal = rng.chance(0.5);
     const x0 = rng.int(1, W - 2);
     const y0 = rng.int(1, H - 2);
     for (let i = 0; i < len; i++) placeGround(horizontal ? x0 + i : x0, horizontal ? y0 : y0 + i, G.BUSH);
   }
   for (let k = 0; k < config.rockCount; k++) {
-    const [w, h] = rng.pick([[2, 2], [3, 2], [2, 3]]);
+    const [w, h] = rng.pick([[2, 2], [2, 1], [1, 2]]);
     const x0 = rng.int(1, W - 1 - w);
     const y0 = rng.int(1, H - 1 - h);
     for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) placeGround(x, y, G.ROCK);
   }
+  // fallen logs: 3 cells long, low enough to see over
+  for (let k = 0, made = 0; k < 200 && made < (config.logCount ?? 0); k++) {
+    const horizontal = rng.chance(0.5);
+    const x0 = rng.int(1, W - 4);
+    const y0 = rng.int(1, H - 4);
+    const cellsL = [0, 1, 2].map((i) => (horizontal ? [x0 + i, y0] : [x0, y0 + i]));
+    if (cellsL.every(([x, y]) => free(x, y))) { for (const [x, y] of cellsL) ground[idx(x, y)] = G.LOG; made++; }
+  }
+  if (car) for (let y = car.y; y < car.y + car.h; y++) for (let x = car.x; x < car.x + car.w; x++) ground[idx(x, y)] = G.CAR;
 
   // --- Ladders: one per platform, on a platform edge cell -----------------
   const ladderCells = [];
@@ -147,7 +235,11 @@ export function generateWorld(config, seed = config.seed) {
   const world = buildWorld(config, W, H, ground, canopy, platforms);
   removeUnreachable(world);
   if (config.noDeadEnds) removeDeadEnds(config, W, H, world.ground, world.canopy, platforms, rng);
-  return buildWorld(config, W, H, world.ground, world.canopy, platforms, seed);
+  const out = buildWorld(config, W, H, world.ground, world.canopy, platforms, seed);
+  out.reserved = reserved; // 1 trail, 2 side path, 3 clearing, 4 car
+  out.clearings = clearings;
+  out.car = car;
+  return out;
 }
 
 // Builds the derived data (walkable nodes, solid volumes) from the two cell grids.
@@ -172,6 +264,8 @@ export function buildWorld(config, W, H, ground, canopy, platforms = [], seed = 
       case G.TREE: list.push([0, config.treeTop, 'tree']); break;
       case G.BUSH: list.push([0, config.bushTop, 'bush']); break;
       case G.ROCK: list.push([0, config.rockTop, 'rock']); break;
+      case G.LOG: list.push([0, 0.7, 'bush']); break;     // a fallen log: you can see over it
+      case G.CAR: list.push([0, 1.65, 'rock']); break;
       default: break;
     }
     switch (canopy[i]) {
@@ -244,7 +338,7 @@ function removeUnreachable(world) {
     if (seen[n] === best) continue;
     const { x, y, level } = nodeXYL(world, n);
     const i = y * world.W + x;
-    if (level === 0) world.ground[i] = G.BUSH;
+    if (level === 0) world.ground[i] = world.config.trail ? G.TREE : G.BUSH;
     else world.canopy[i] = C.AIR;
   }
   // A ladder only counts if both ends survived.
@@ -322,7 +416,7 @@ function removeDeadEnds(config, W, H, ground, canopy, platforms, rng) {
     // fill the alcove in
     for (const n of pocket) {
       const i = n % N;
-      if (n < N) ground[i] = G.BUSH; else canopy[i] = C.AIR;
+      if (n < N) ground[i] = config.trail ? G.TREE : G.BUSH; else canopy[i] = C.AIR;
       if (ground[i] === G.LADDER && canopy[i] !== C.LADDER) ground[i] = G.FREE;
       if (canopy[i] === C.LADDER && ground[i] !== G.LADDER) canopy[i] = C.PLATFORM;
     }
@@ -341,7 +435,7 @@ function carveOpening(world, ground, canopy, pocket, inPocket, rng) {
       const x = i % W;
       const y = Math.floor(i / W);
       if (x < 1 || y < 1 || x > W - 2 || y > H - 2) return false;
-      return level === 0 ? [G.TREE, G.BUSH, G.ROCK].includes(ground[i]) : canopy[i] === C.AIR;
+      return level === 0 ? [G.TREE, G.BUSH, G.ROCK, G.LOG].includes(ground[i]) : canopy[i] === C.AIR;
     };
     const walkableOther = (i) => world.walk[level * N + i] === 1 && !inPocket.has(level * N + i);
     const prev = new Map();

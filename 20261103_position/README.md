@@ -15,10 +15,11 @@ Play: open `index.html` through a web server (for example `python3 -m http.serve
 | Input | Action |
 |---|---|
 | Arrow keys / WASD, or click where to go | move (click a tree to walk to it and climb it) |
-| Space (one button for everything) | shoot when it is close and in the clear (freezes it for 3 seconds); climb a tree next to you; climb down |
+| Space | shoot, when it is close and in the clear: it freezes for 3 seconds |
+| E | climb the tree next to you, or climb down |
 | M / P | map view / pause |
 
-A prompt at the bottom of the screen always says what Space will do.
+Shooting and hiding are on different keys so one is never pressed for the other. Prompts at the bottom of the screen show what each key would do right now.
 
 ## Rules
 
@@ -30,7 +31,8 @@ A prompt at the bottom of the screen always says what Space will do.
 - **The case alarm:** when you pick up the case it beeps for 6 seconds and it knows where you are.
 - **Seeing it coming:** it glides at its real speed, and fades in out of the fog: first a faint shape with glowing eyes (up to 14 cells, with a clear line), then fully when you can see it (9 cells).
 - **Fear:** synthesized sound (wind, a heartbeat that speeds up as it closes in, its creaking, a screech when it sees you), a red vignette, a flickering flashlight and camera shake when it is near, and a lunge when it gets you.
-- **Difficulty:** its speed and sight, and your bullets (Easy 3, Normal 1, Hard 1). With a scripted player (`src/sim/bot.js`, which only knows what a player could see and hear) the win rate is about **86% on Easy, 65% on Normal, 44% on Hard** (300 runs on 6 maps each).
+- **Difficulty:** its speed and sight, and your bullets (Easy 3, Normal 1, Hard 1). While the case beeps it rushes at you. With a scripted player (`src/sim/bot.js`, which only knows what a player could see and hear) the win rate is about **95% on Easy, 72% on Normal, 36% on Hard** (300 runs on 6 maps each).
+- **It never stands still for long:** sounds and crows send it to a cell it can stand on, it gives up waiting in an ambush after 6 seconds, it circles the foot of your tree, and if it has not moved for 3.5 seconds while wandering it picks a new place to go (tested in `tests/escape.test.mjs`).
 
 ## Position (Part 1)
 
@@ -63,7 +65,7 @@ The page has a diagram for each relation and behaviour.
 
 ## The scene
 
-A 34 × 24 grid on one level: pines, bushes, rocks and a boundary wall, with no dead ends. Maps come from a seed; **New map** draws another. The creature, the case, the crows, the hospital, the look, the sound and the story are original to this project.
+A 44 × 28 grid on one level with a designed layout (`config.trail`): a winding trail runs from a broken-down car on the west side, headlights still on, to the hospital door in the middle of the east wall. Side paths lead to small clearings; the case lies in the one farthest from the hospital. The forest is dense away from the trail and thinner next to it, with lanterns along the trail, fallen logs (low: you can see over them), rocks, bushes and some dead trees, and no dead ends. The ground is a painted snow texture with the trodden trail, footprints, tyre tracks and shadows. Maps come from a seed; **New map** draws another. The creature, the case, the crows, the hospital, the look, the sound and the story are original to this project.
 
 ## The four distances (from last week, where they drove a police officer and a thief)
 

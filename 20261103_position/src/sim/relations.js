@@ -276,7 +276,7 @@ export function stepCrows(game) {
     const heard = metrics.acoustic(c.node, game.creature.node) <= cc.cawRange;
     game.sounds.push({ who: 'crow', node: c.node, heard: true, creatureHeard: heard });
     if (heard) {
-      game.creature.heardAt = c.node;
+      game.creature.heardAt = me.node; // it comes to where the crow saw you, not into the tree
       game.log('crow', 'caw', 'A crow caws at you. The creature heard it and comes.');
     } else {
       game.log('crow', 'caw', 'A crow caws at you, but the creature is too far away to hear.');

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIG } from '../src/sim/config.js';
 import { makeContext } from '../src/sim/context.js';
-import { newRun, stepRun, stepCell, treeNextTo, actionFor } from '../src/sim/escape.js';
+import { newRun, stepRun, stepCell, treeNextTo, actionsFor } from '../src/sim/escape.js';
 import { playBotRun } from '../src/sim/bot.js';
 import { nodeXYL } from '../src/sim/world.js';
 
@@ -39,16 +39,16 @@ test('walking moves 2 cells in 4 ticks', () => {
   assert.equal(ctx.pf.distance(start, g.player.node), 2);
 });
 
-test('the action key climbs a tree next to you; up there it cannot see or catch you, and you come down in time', () => {
+test('the climb key gets you into a tree next to you; up there it cannot see or catch you, and you come down in time', () => {
   const g = newRun(ctx, { round: 3 });
   far(g);
   g.player.node = ctx.world.nodes.find((n) => treeNextTo(ctx.world, n) !== null);
-  assert.equal(actionFor(g), 'climb');
-  stepRun(g, { action: true });
+  assert.equal(actionsFor(g).climb, 'up');
+  stepRun(g, { climb: true });
   for (let k = 0; k < CONFIG.game.climbTicks; k++) stepRun(g, {});
   assert.notEqual(g.player.inTree, null);
   assert.ok(g.relations.position.some((r) => r.kind === 'above'));
-  assert.equal(actionFor(g), 'down');
+  assert.equal(actionsFor(g).climb, 'down');
   // the creature right under the tree: still not caught, not seen
   let next = null;
   for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { next = stepCell(ctx.world, g.player.node, dx, dy); if (next !== null) break; }
@@ -80,7 +80,11 @@ test('a shot within range and in the clear freezes the creature for 3 seconds an
   g.creature.node = target;
   const ammo = g.player.ammo;
   g.player.seesCreature = true;
-  stepRun(g, { action: true });
+  stepRun(g, { climb: true }); // the wrong key: nothing happens to it
+  assert.equal(g.creature.mode === 'frozen', false);
+  g.player.seesCreature = true;
+  g.player.busy = 0; g.player.climbing = null; g.player.inTree = null;
+  stepRun(g, { shoot: true });
   assert.equal(g.player.ammo, ammo - 1);
   assert.equal(g.creature.mode, 'frozen');
   assert.equal(g.over, false, 'a frozen creature does not catch you');
@@ -114,4 +118,21 @@ test('every run ends, and the scripted player wins some and loses some on normal
     if (g.result === 'win') wins++;
   }
   assert.ok(wins >= 6 && wins <= 24, `${wins} of 30`);
+});
+
+test('the creature does not get stuck: never more than 30 ticks on one cell while wandering or investigating', () => {
+  for (let r = 1; r <= 25; r++) {
+    const g = newRun(ctx, { round: r });
+    let still = 0;
+    let last = g.creature.node;
+    while (!g.over) {
+      stepRun(g, { dx: 0, dy: 0 }); // you stand still, so it has to find you
+      if (g.step > 600) break;
+      const c = g.creature;
+      if (c.node === last && (c.mode === 'patrol' || c.mode === 'investigate')) still++;
+      else still = 0;
+      last = c.node;
+      assert.ok(still <= 30, `run ${r}: stuck for ${still} ticks at step ${g.step} in mode ${c.mode}`);
+    }
+  }
 });

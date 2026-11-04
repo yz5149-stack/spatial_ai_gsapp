@@ -6,8 +6,8 @@ export const CONFIG = {
   seed: 20261022,
 
   // Grid
-  width: 34,
-  height: 24,
+  width: 44,
+  height: 28,
   levelHeight: 3,          // the canopy floor is 3 cells above the ground
   eyeHeight: 1.5,          // eye point above the floor an agent stands on
 
@@ -20,13 +20,16 @@ export const CONFIG = {
   foliageTop: 5.5,         // leaf clumps on the platforms
 
   // Map generation
-  treeCount: 118,
+  treeCount: 270,
   bushRows: 16,
-  rockCount: 9,
+  rockCount: 8,
   platformCount: 0,
   ladderCount: 0,
   foliageClumpsPerPlatform: 2,
-  noDeadEnds: true,               // every walkable cell lies on a loop: no path is a dead end
+  noDeadEnds: true,
+  trail: true,             // a designed layout: a winding trail from a car (west) to the hospital (east)
+  clearings: 4,            // small clearings off the trail; the case lies in one
+  logCount: 9,             // fallen logs (3 cells, low: you can see over them)               // every walkable cell lies on a loop: no path is a dead end
 
   // Vision: forward cone, 3D Euclidean distance, blocked by solid volumes
   visionRange: 9,
@@ -86,14 +89,15 @@ export const CONFIG = {
     shotHeard: 20,           // a shot is heard this far (acoustic distance)
     freezeTicks: 20,         // a hit freezes the creature for 3 seconds (20 x 150 ms)
     caseAlarmTicks: 40,      // after you take the case it beeps for 6 seconds: the creature knows where you are
-    caseFromDoor: 16,        // the case lies at least this far (path) from the hospital door
+    caseFromDoor: 20,        // the case lies at least this far (path) from the hospital door
     maxTicks: 2400,          // 6 minutes: then the night is over
     searchTicks: 8,          // the creature turns a full circle where it lost you
     difficulty: {
-      // creature speeds in cells per tick (yours is 0.5), how far it sees, and your bullets
-      easy:   { patrol: 0.22, investigate: 0.32, chase: 0.34, track: 0.34, sight: 6, ammo: 3 },
-      normal: { patrol: 0.25, investigate: 0.36, chase: 0.45, track: 0.42, sight: 9, ammo: 1 },
-      hard:   { patrol: 0.3, investigate: 0.45, chase: 0.6, track: 0.55, sight: 9, ammo: 1 },
+      // creature speeds in cells per tick (yours is 0.5), how far it sees, and your bullets.
+      // 'track' is its speed while the case beeps: it rushes at you for those 6 seconds.
+      easy:   { patrol: 0.22, investigate: 0.32, chase: 0.45, track: 0.6, sight: 6, ammo: 3 },
+      normal: { patrol: 0.3, investigate: 0.45, chase: 0.6, track: 0.7, sight: 9, ammo: 1 },
+      hard:   { patrol: 0.36, investigate: 0.55, chase: 0.72, track: 0.8, sight: 9, ammo: 1 },
     },
   },
 

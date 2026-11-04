@@ -5,28 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Frostroot: Night Run</title>
   <meta name="description" content="A playable night escape in a snowy forest. Find the vaccine case and carry it to the hospital while a creature of roots hunts you. Hide up in the trees, slip past it, and keep your bullet for when it is close.">
-  <link rel="stylesheet" href="style.css?v=20261103e">
+  <link rel="stylesheet" href="style.css?v=20261103f">
   <!-- ?v= is a version stamp: change it on every release so browsers fetch the new files. -->
   <script type="importmap">
     {
       "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "./src/render/plans2d.js": "./src/render/plans2d.js?v=20261103e",
-        "./src/render/scene3d.js": "./src/render/scene3d.js?v=20261103e",
-        "./src/sim/config.js": "./src/sim/config.js?v=20261103e",
-        "./src/sim/context.js": "./src/sim/context.js?v=20261103e",
-        "./src/sim/creature.js": "./src/sim/creature.js?v=20261103e",
-        "./src/sim/escape.js": "./src/sim/escape.js?v=20261103e",
-        "./src/sim/los.js": "./src/sim/los.js?v=20261103e",
-        "./src/sim/metrics.js": "./src/sim/metrics.js?v=20261103e",
-        "./src/sim/paths.js": "./src/sim/paths.js?v=20261103e",
-        "./src/sim/rays.js": "./src/sim/rays.js?v=20261103e",
-        "./src/sim/relations.js": "./src/sim/relations.js?v=20261103e",
-        "./src/sim/rng.js": "./src/sim/rng.js?v=20261103e",
-        "./src/sim/world.js": "./src/sim/world.js?v=20261103e",
-        "./src/ui/main.js": "./src/ui/main.js?v=20261103e",
-        "./src/ui/panels.js": "./src/ui/panels.js?v=20261103e",
-        "./src/ui/audio.js": "./src/ui/audio.js?v=20261103e"
+        "./src/render/plans2d.js": "./src/render/plans2d.js?v=20261103f",
+        "./src/render/scene3d.js": "./src/render/scene3d.js?v=20261103f",
+        "./src/sim/config.js": "./src/sim/config.js?v=20261103f",
+        "./src/sim/context.js": "./src/sim/context.js?v=20261103f",
+        "./src/sim/creature.js": "./src/sim/creature.js?v=20261103f",
+        "./src/sim/escape.js": "./src/sim/escape.js?v=20261103f",
+        "./src/sim/los.js": "./src/sim/los.js?v=20261103f",
+        "./src/sim/metrics.js": "./src/sim/metrics.js?v=20261103f",
+        "./src/sim/paths.js": "./src/sim/paths.js?v=20261103f",
+        "./src/sim/rays.js": "./src/sim/rays.js?v=20261103f",
+        "./src/sim/relations.js": "./src/sim/relations.js?v=20261103f",
+        "./src/sim/rng.js": "./src/sim/rng.js?v=20261103f",
+        "./src/sim/world.js": "./src/sim/world.js?v=20261103f",
+        "./src/ui/main.js": "./src/ui/main.js?v=20261103f",
+        "./src/ui/panels.js": "./src/ui/panels.js?v=20261103f",
+        "./src/ui/audio.js": "./src/ui/audio.js?v=20261103f"
       }
     }
   </script>
@@ -61,7 +61,10 @@
           <span class="chip frozen" id="chip-frozen">FROZEN</span>
         </div>
         <div class="minimap"><canvas id="minimap"></canvas></div>
-        <div class="prompt" id="prompt" hidden><kbd>Space</kbd><span id="prompt-text"></span></div>
+        <div class="prompts" id="prompts" hidden>
+          <div class="prompt shoot" id="prompt-shoot" hidden><kbd>Space</kbd><span>Shoot: freezes it for 3 seconds</span></div>
+          <div class="prompt climb" id="prompt-climb" hidden><kbd>E</kbd><span id="prompt-climb-text">Climb the tree and hide</span></div>
+        </div>
         <div class="treebar" id="treebar" hidden><b></b></div>
         <div class="toast hide" id="toast"></div>
         <div class="touch" id="touch" aria-hidden="true">
@@ -70,7 +73,7 @@
             <button data-dir="-1,0">&larr;</button><span></span><button data-dir="1,0">&rarr;</button>
             <span></span><button data-dir="0,1">&darr;</button><span></span>
           </div>
-          <div class="acts"><button data-act="action" class="fire">ACTION</button></div>
+          <div class="acts"><button data-act="climb" class="hide">HIDE</button><button data-act="shoot" class="fire">FIRE</button></div>
         </div>
 
         <div class="screen" id="screen-start">
@@ -80,8 +83,8 @@
               Find the glowing case and carry it to the hospital door. Do not let it reach you.</p>
             <div class="howto">
               <div><b>Move</b><span>Arrow keys or WASD, or just click where you want to go.</span></div>
-              <div><b>Space</b><span>One button for everything: shoot it when it is close, climb a tree next to you, climb down.</span></div>
-              <div><b>Hide</b><span>Up in a tree it cannot see you. But you can only hold on for a few seconds.</span></div>
+              <div><b>Space</b><span>Shoot. It freezes for 3 seconds. Only when it is close.</span></div>
+              <div><b>E</b><span>Climb the tree next to you, and climb down again. Up there it cannot see you, but you can only hold on for a few seconds.</span></div>
             </div>
             <div class="seg" role="group" aria-label="Difficulty" id="difficulty">
               <button type="button" data-diff="easy">Easy</button>
@@ -169,6 +172,6 @@
     <p>Spatial AI, Columbia GSAPP, fall 2026. An original game; built with three.js 0.160.0. Sound is synthesized in the browser.</p>
   </footer>
 
-  <script type="module" src="src/ui/main.js?v=20261103e"></script>
+  <script type="module" src="src/ui/main.js?v=20261103f"></script>
 </body>
 </html>

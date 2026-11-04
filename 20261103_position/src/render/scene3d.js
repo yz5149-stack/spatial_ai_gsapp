@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { G, C, nodeXYL } from '../sim/world.js';
 import { eyePoint, inCone, segmentClear } from '../sim/los.js';
-import { actionFor, treeNextTo } from '../sim/escape.js';
+import { actionsFor, treeNextTo } from '../sim/escape.js';
 
 const tmpMatrix = new THREE.Matrix4();
 const tmpQuat = new THREE.Quaternion();
@@ -56,6 +56,7 @@ export function makeScene3D(container, palette) {
   const camLook = new THREE.Vector3();
   const camOff = new THREE.Vector3(0, 15.5, 10.5);
   let climbFrom = null;
+  let flashFlick = 1;
 
   const floorY = (level) => level * world.config.levelHeight;
   const cellV = (n, lift = 0.1) => { const { x, y, level } = nodeXYL(world, n); return new THREE.Vector3(x + 0.5, floorY(level) + lift, y + 0.5); };
@@ -106,7 +107,29 @@ export function makeScene3D(container, palette) {
   const torch = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.26, 10), new THREE.MeshStandardMaterial({ color: 0x1d1f23, emissive: 0xffe2a8, emissiveIntensity: 0.5, fog: false }));
   torch.position.set(0, -0.48, 0);
   armR.add(torch);
-  figure.add(torso, hem, hood, face, fur, scarf, tail, pack, legL, legR, armL, armR);
+  // gloves at the ends of the arms, a zipper and pockets on the coat, backpack straps
+  const glove = new THREE.MeshStandardMaterial({ color: 0x23272d, roughness: 0.9, fog: false });
+  for (const arm of [armL, armR]) {
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), glove);
+    h.position.y = -0.46;
+    arm.add(h);
+  }
+  const zipper = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.5, 0.03), new THREE.MeshStandardMaterial({ color: 0x8b6a2a, metalness: 0.6, roughness: 0.4, fog: false }));
+  zipper.position.set(0.2, 0.98, 0);
+  const pocketMat = new THREE.MeshStandardMaterial({ color: 0xa8742a, roughness: 0.8, fog: false });
+  const pockets = [-0.1, 0.1].map((z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.12), pocketMat); m.position.set(0.19, 0.8, z); return m; });
+  const strap = new THREE.MeshStandardMaterial({ color: 0x2a3326, fog: false });
+  const straps = [-0.12, 0.12].map((z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.48, 0.04), strap); m.position.set(0.12, 1.04, z); m.rotation.z = -0.25; return m; });
+  figure.add(torso, hem, hood, face, fur, scarf, tail, pack, legL, legR, armL, armR, zipper, ...pockets, ...straps);
+  // the flashlight beam you can see in the falling snow
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0xffe9c4, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false, fog: false, blending: THREE.AdditiveBlending });
+  const torchBeam = new THREE.Mesh(new THREE.ConeGeometry(1.5, 6, 24, 1, true), beamMat);
+  torchBeam.rotation.z = Math.PI / 2;
+  torchBeam.position.set(0.45 + 3, 0.75, 0.2);
+  you.add(torchBeam);
+  // soft shadows on the snow
+  const blob = (r) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 24), new THREE.MeshBasicMaterial({ color: 0x05070a, transparent: true, opacity: 0.45, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.02; return m; };
+  you.add(blob(0.42));
   const ringMat = new THREE.MeshBasicMaterial({ color: palette.player, transparent: true, opacity: 0.9, side: THREE.DoubleSide, fog: false });
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.58, 40), ringMat);
   ring.rotation.x = -Math.PI / 2;
@@ -189,6 +212,8 @@ export function makeScene3D(container, palette) {
     else e.position.set(0.42 + Math.cos(a) * 0.1, 1.6 + (k % 4) * 0.16, Math.sin(a) * 0.35);
     creature.add(e);
   }
+  const creatureShadow = blob(1.3);
+  creature.add(creatureShadow);
   const creatureLight = new THREE.PointLight(palette.creature, 4, 7, 1.3);
   creatureLight.position.set(0.6, 2.2, 0);
   creature.add(creatureLight);
@@ -356,6 +381,150 @@ export function makeScene3D(container, palette) {
     flashes.push({ obj, born: now });
   }
 
+  // ---- ground texture: snow, the trodden trail, footprints, tyre tracks, shadows under trees --
+  function makeGround() {
+    const { W, H, ground } = world;
+    const S = 32;
+    const cv = document.createElement('canvas');
+    cv.width = (W + 14) * S;
+    cv.height = (H + 14) * S;
+    const g = cv.getContext('2d');
+    const ox = 7 * S;
+    const oy = 7 * S;
+    g.fillStyle = palette.snow;
+    g.fillRect(0, 0, cv.width, cv.height);
+    // soft drifts
+    for (let i = 0; i < 900; i++) {
+      const x = Math.random() * cv.width;
+      const y = Math.random() * cv.height;
+      const r = 6 + Math.random() * 40;
+      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      const shade = Math.random() < 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(120,140,170,0.07)';
+      grd.addColorStop(0, shade);
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grd;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    const reserved = world.reserved;
+    if (reserved) {
+      // the trail and side paths: packed, greyer snow with soft edges
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const v = reserved[y * W + x];
+        if (v !== 1 && v !== 2) continue;
+        const cx = ox + (x + 0.5) * S;
+        const cy = oy + (y + 0.5) * S;
+        const grd = g.createRadialGradient(cx, cy, 0, cx, cy, S * 0.95);
+        grd.addColorStop(0, v === 1 ? 'rgba(95,105,120,0.42)' : 'rgba(95,105,120,0.28)');
+        grd.addColorStop(1, 'rgba(95,105,120,0)');
+        g.fillStyle = grd;
+        g.fillRect(cx - S, cy - S, S * 2, S * 2);
+      }
+      // footprints along the trail
+      g.fillStyle = 'rgba(70,80,96,0.45)';
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        if (reserved[y * W + x] !== 1 || jitter(x, y, 31) > 0.45) continue;
+        for (let k = 0; k < 2; k++) {
+          const fx = ox + (x + 0.25 + 0.5 * k) * S;
+          const fy = oy + (y + 0.35 + 0.3 * jitter(x, y, 32 + k)) * S;
+          g.beginPath(); g.ellipse(fx, fy, 3.2, 5.5, 0.4 * (k ? 1 : -1), 0, Math.PI * 2); g.fill();
+        }
+      }
+      // clearings: a slightly bluer, untouched snowfield
+      for (const c of world.clearings ?? []) {
+        const cx = ox + (c.x + 0.5) * S;
+        const cy = oy + (c.y + 0.5) * S;
+        const grd = g.createRadialGradient(cx, cy, 0, cx, cy, (c.r + 1) * S);
+        grd.addColorStop(0, 'rgba(200,225,255,0.22)');
+        grd.addColorStop(1, 'rgba(200,225,255,0)');
+        g.fillStyle = grd;
+        g.fillRect(cx - (c.r + 1) * S, cy - (c.r + 1) * S, (c.r + 1) * 2 * S, (c.r + 1) * 2 * S);
+      }
+    }
+    // tyre tracks behind the car
+    if (world.car) {
+      g.strokeStyle = 'rgba(60,68,80,0.5)';
+      g.lineWidth = 6;
+      for (const dy of [0.45, 1.55]) {
+        g.beginPath();
+        g.moveTo(ox + 0 * S, oy + (world.car.y + dy) * S);
+        g.lineTo(ox + world.car.x * S, oy + (world.car.y + dy) * S);
+        g.stroke();
+      }
+    }
+    // shadows under trees, bushes and rocks
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const t = ground[y * W + x];
+      if (t !== G.TREE && t !== G.BUSH && t !== G.ROCK && t !== G.LOG) continue;
+      const cx = ox + (x + 0.5) * S;
+      const cy = oy + (y + 0.6) * S;
+      const r = t === G.TREE ? S * 0.9 : S * 0.65;
+      const grd = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+      grd.addColorStop(0, 'rgba(20,28,40,0.38)');
+      grd.addColorStop(1, 'rgba(20,28,40,0)');
+      g.fillStyle = grd;
+      g.fillRect(cx - r, cy - r, r * 2, r * 2);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W + 14, H + 14), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(W / 2, 0, H / 2);
+    return floor;
+  }
+
+  // ---- the broken-down car --------------------------------------------------------------------
+  function makeCar(car) {
+    const g = new THREE.Group();
+    const paint = new THREE.MeshStandardMaterial({ color: 0x5a1f1c, roughness: 0.45, metalness: 0.4 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x14171b, roughness: 0.6 });
+    const glass = new THREE.MeshStandardMaterial({ color: 0x223040, roughness: 0.1, metalness: 0.6, emissive: 0x0a1018 });
+    const snowM = new THREE.MeshStandardMaterial({ color: palette.snow, roughness: 0.95 });
+    const L = car.w - 0.2;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(L, 0.55, 1.6), paint);
+    body.position.y = 0.55;
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(L * 0.5, 0.5, 1.45), glass);
+    cabin.position.set(-0.15, 1.05, 0);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(L * 0.5, 0.08, 1.45), paint);
+    roof.position.set(-0.15, 1.33, 0);
+    const roofSnow = new THREE.Mesh(new THREE.BoxGeometry(L * 0.48, 0.1, 1.4), snowM);
+    roofSnow.position.set(-0.15, 1.42, 0);
+    const hoodSnow = new THREE.Mesh(new THREE.BoxGeometry(L * 0.3, 0.06, 1.5), snowM);
+    hoodSnow.position.set(L * 0.33, 0.86, 0);
+    g.add(body, cabin, roof, roofSnow, hoodSnow);
+    for (const [wx, wz] of [[-L * 0.32, 0.8], [L * 0.32, 0.8], [-L * 0.32, -0.8], [L * 0.32, -0.8]]) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.22, 14), dark);
+      w.rotation.x = Math.PI / 2;
+      w.position.set(wx, 0.3, wz);
+      g.add(w);
+    }
+    const lampOn = new THREE.MeshBasicMaterial({ color: 0xfff1c8, fog: false });
+    const tail = new THREE.MeshBasicMaterial({ color: 0xff2a20, fog: false });
+    for (const z of [-0.55, 0.55]) {
+      const hl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.26), lampOn);
+      hl.position.set(L / 2 + 0.01, 0.62, z);
+      const tl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.22), tail);
+      tl.position.set(-L / 2 - 0.01, 0.62, z);
+      g.add(hl, tl);
+    }
+    // the open driver's door
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.5, 0.05), paint);
+    door.position.set(0.1, 0.7, 1.02);
+    door.rotation.y = -0.7;
+    g.add(door);
+    // two headlight beams down the trail
+    const beams = new THREE.SpotLight(0xfff0cc, 22, 18, 0.42, 0.6, 1.0);
+    beams.position.set(L / 2 + 0.2, 0.7, 0);
+    beams.target.position.set(L / 2 + 10, 0, 0);
+    g.add(beams, beams.target);
+    const beamCone = new THREE.Mesh(new THREE.ConeGeometry(1.6, 7, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff0cc, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false, fog: false }));
+    beamCone.rotation.z = Math.PI / 2;
+    beamCone.position.set(L / 2 + 3.6, 0.6, 0);
+    g.add(beamCone);
+    g.position.set(car.x + car.w / 2, 0, car.y + car.h / 2);
+    return g;
+  }
+
   // ---- map ---------------------------------------------------------------------------------
   function buildMap(newWorld, newRays, exits = []) {
     world = newWorld;
@@ -377,10 +546,7 @@ export function makeScene3D(container, palette) {
     const ident = (q) => q.identity();
     const snowMat = new THREE.MeshStandardMaterial({ color: palette.snow, roughness: 0.95 });
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W + 14, H + 14), snowMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(W / 2 + 2, 0, H / 2);
-    mapGroup.add(floor);
+    mapGroup.add(makeGround());
 
     // the boundary wall, with an opening at the hospital door
     const door = exits[0];
@@ -424,25 +590,109 @@ export function makeScene3D(container, palette) {
     hosp.add(hall, roof, doorPanel, doorLight, pad);
     mapGroup.add(hosp);
 
-    // pines with snow on top
+    // pines: three stacked tiers with snow on each, different sizes; some dead, bare trees
     const trees = cells(ground, G.TREE);
-    mapGroup.add(instanced(new THREE.CylinderGeometry(0.1, 0.16, 1, 8), new THREE.MeshStandardMaterial({ color: palette.trunk }), trees,
-      ([x, y], p, s, q) => { p.set(x + 0.5, 0.7, y + 0.5); s.set(1, 1.4, 1); ident(q); }));
-    const pine = new THREE.MeshStandardMaterial({ color: palette.tree, roughness: 0.9, flatShading: true });
-    mapGroup.add(instanced(new THREE.ConeGeometry(0.55, 1, 7), pine, trees,
-      ([x, y], p, s, q) => { const h = 1.9 + 0.5 * jitter(x, y, 1); p.set(x + 0.5, 1.15 + h / 2, y + 0.5); s.set(1, h, 1); q.setFromAxisAngle(UP, jitter(x, y, 2) * 6); }));
-    mapGroup.add(instanced(new THREE.ConeGeometry(0.3, 1, 7), snowMat, trees,
-      ([x, y], p, s, q) => { const h = 1.9 + 0.5 * jitter(x, y, 1); p.set(x + 0.5, 1.15 + h - 0.25, y + 0.5); s.set(1, 0.55, 1); q.setFromAxisAngle(UP, jitter(x, y, 2) * 6); }));
+    const dead = trees.filter(([x, y]) => jitter(x, y, 9) < 0.12);
+    const pines = trees.filter(([x, y]) => jitter(x, y, 9) >= 0.12);
+    const sizeOf = (x, y) => 0.8 + 0.5 * jitter(x, y, 1);
+    const turn = (x, y, k, q) => q.setFromAxisAngle(UP, jitter(x, y, k) * 6.3);
+    mapGroup.add(instanced(new THREE.CylinderGeometry(0.09, 0.15, 1, 7), new THREE.MeshStandardMaterial({ color: palette.trunk, roughness: 1 }), pines,
+      ([x, y], p, sc, q) => { const k = sizeOf(x, y); p.set(x + 0.5, 0.6 * k, y + 0.5); sc.set(k, 1.2 * k, k); q.identity(); }));
+    const pine = new THREE.MeshStandardMaterial({ color: palette.tree, roughness: 0.95, flatShading: true });
+    const TIERS = [[0.62, 1.1, 1.05], [0.48, 0.95, 1.75], [0.32, 0.8, 2.4]]; // radius, height, base height
+    for (const [r, h, base] of TIERS) {
+      mapGroup.add(instanced(new THREE.ConeGeometry(r, h, 8), pine, pines,
+        ([x, y], p, sc, q) => { const k = sizeOf(x, y); p.set(x + 0.5, (base + h / 2) * k, y + 0.5); sc.set(k, k, k); turn(x, y, 2, q); }));
+      mapGroup.add(instanced(new THREE.ConeGeometry(r * 0.72, h * 0.42, 8), snowMat, pines,
+        ([x, y], p, sc, q) => { const k = sizeOf(x, y); p.set(x + 0.5, (base + h * 0.72) * k, y + 0.5); sc.set(k, k, k); turn(x, y, 2, q); }));
+    }
+    // dead trees: a black trunk with crooked branches
+    const deadMat = new THREE.MeshStandardMaterial({ color: 0x15120f, roughness: 1 });
+    mapGroup.add(instanced(new THREE.CylinderGeometry(0.05, 0.13, 1, 6), deadMat, dead,
+      ([x, y], p, sc, q) => { const k = sizeOf(x, y); p.set(x + 0.5, 1.5 * k, y + 0.5); sc.set(k, 3 * k, k); q.identity(); }));
+    for (let b = 0; b < 4; b++) {
+      mapGroup.add(instanced(new THREE.CylinderGeometry(0.02, 0.05, 1, 5), deadMat, dead,
+        ([x, y], p, sc, q) => {
+          const k = sizeOf(x, y);
+          const a = jitter(x, y, 20 + b) * 6.3;
+          const hgt = (1.4 + b * 0.45) * k;
+          p.set(x + 0.5 + Math.cos(a) * 0.32 * k, hgt, y + 0.5 + Math.sin(a) * 0.32 * k);
+          sc.set(1, (0.9 - b * 0.12) * k, 1);
+          q.setFromEuler(new THREE.Euler(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9));
+        }));
+    }
 
-    // bushes, dusted with snow
+    // bushes: clumps of three, dusted with snow
     const bushes = cells(ground, G.BUSH);
-    mapGroup.add(instanced(new THREE.IcosahedronGeometry(0.5, 1), new THREE.MeshStandardMaterial({ color: palette.bush, roughness: 1, flatShading: true }), bushes,
-      ([x, y], p, s, q) => { p.set(x + 0.5, 0.85, y + 0.5); s.set(1.1, 1.7, 1.1); q.setFromAxisAngle(UP, jitter(x, y, 3) * 6); }));
-    mapGroup.add(instanced(new THREE.IcosahedronGeometry(0.5, 1), snowMat, bushes,
-      ([x, y], p, s, q) => { p.set(x + 0.5, 1.62, y + 0.5); s.set(0.85, 0.3, 0.85); q.setFromAxisAngle(UP, jitter(x, y, 3) * 6); }));
+    const bushMat = new THREE.MeshStandardMaterial({ color: palette.bush, roughness: 1, flatShading: true });
+    for (const [ox, oz, r] of [[-0.18, -0.12, 0.42], [0.2, 0.05, 0.38], [-0.02, 0.22, 0.34]]) {
+      mapGroup.add(instanced(new THREE.IcosahedronGeometry(1, 1), bushMat, bushes,
+        ([x, y], p, sc, q) => { p.set(x + 0.5 + ox, r * 1.3, y + 0.5 + oz); sc.set(r, r * 1.5, r); turn(x, y, 3, q); }));
+      mapGroup.add(instanced(new THREE.IcosahedronGeometry(1, 1), snowMat, bushes,
+        ([x, y], p, sc, q) => { p.set(x + 0.5 + ox, r * 2.3, y + 0.5 + oz); sc.set(r * 0.75, r * 0.3, r * 0.75); turn(x, y, 3, q); }));
+    }
 
-    mapGroup.add(instanced(new THREE.DodecahedronGeometry(0.5, 0), new THREE.MeshStandardMaterial({ color: palette.rock, roughness: 0.95, flatShading: true }), cells(ground, G.ROCK),
-      ([x, y], p, s, q) => { p.set(x + 0.5, 0.9, y + 0.5); s.set(1.15, 1.8, 1.15); q.setFromAxisAngle(UP, jitter(x, y, 4) * 6); }));
+    // rocks, with snow caps
+    const rocks = cells(ground, G.ROCK);
+    mapGroup.add(instanced(new THREE.DodecahedronGeometry(0.5, 0), new THREE.MeshStandardMaterial({ color: palette.rock, roughness: 0.95, flatShading: true }), rocks,
+      ([x, y], p, sc, q) => { p.set(x + 0.5, 0.75, y + 0.5); sc.set(1.2, 1.5, 1.2); turn(x, y, 4, q); }));
+    mapGroup.add(instanced(new THREE.DodecahedronGeometry(0.5, 0), snowMat, rocks,
+      ([x, y], p, sc, q) => { p.set(x + 0.5, 1.35, y + 0.5); sc.set(0.9, 0.35, 0.9); turn(x, y, 4, q); }));
+
+    // fallen logs: one cylinder per run of three cells, snow along the top
+    const logMat = new THREE.MeshStandardMaterial({ color: 0x3b2a1d, roughness: 1 });
+    const cutMat = new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 1 });
+    const seenLog = new Set();
+    for (const [x, y] of cells(ground, G.LOG)) {
+      if (seenLog.has(y * W + x)) continue;
+      const horiz = x + 1 < W && ground[y * W + x + 1] === G.LOG;
+      const len = 3;
+      for (let k = 0; k < len; k++) seenLog.add(horiz ? y * W + x + k : (y + k) * W + x);
+      const g2 = new THREE.Group();
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, len - 0.1, 10), logMat);
+      log.rotation.z = Math.PI / 2;
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, len - 0.3, 10, 1, false, Math.PI * 0.5, Math.PI), snowMat);
+      cap.rotation.z = Math.PI / 2;
+      cap.position.y = 0.12;
+      const end1 = new THREE.Mesh(new THREE.CircleGeometry(0.3, 10), cutMat);
+      end1.rotation.y = Math.PI / 2;
+      end1.position.x = (len - 0.1) / 2 + 0.001;
+      g2.add(log, cap, end1);
+      g2.position.set(horiz ? x + len / 2 : x + 0.5, 0.32, horiz ? y + 0.5 : y + len / 2);
+      g2.rotation.y = horiz ? jitter(x, y, 6) * 0.1 : Math.PI / 2;
+      mapGroup.add(g2);
+    }
+
+    // the broken-down car where you start, headlights still on, pointing along the trail
+    if (world.car) mapGroup.add(makeCar(world.car));
+
+    // trail posts with dim lanterns every few cells, so the way to the hospital reads in the dark
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 1 });
+    const lampMat = new THREE.MeshBasicMaterial({ color: 0xffb35a, fog: false });
+    const reserved = world.reserved;
+    let count = 0;
+    if (reserved) {
+      for (let x = 7; x < W - 2; x += 6) {
+        for (let y = 1; y < H - 1; y++) {
+          if (reserved[y * W + x] !== 1) continue;
+          // the first trail cell in this column: put the post on the cell just north of the trail
+          const py = y - 1;
+          if (ground[py * W + x] === G.FREE || ground[py * W + x] === G.TREE || ground[py * W + x] === G.BUSH) {
+            const post = new THREE.Group();
+            const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.2, 0.08), postMat);
+            pole.position.y = 0.6;
+            const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), lampMat);
+            lamp.position.set(0.1, 1.15, 0);
+            post.add(pole, lamp);
+            post.position.set(x + 0.5, 0, py + 0.75);
+            mapGroup.add(post);
+            if (count % 2 === 0) { const l = new THREE.PointLight(0xffa54a, 1.2, 3.5, 1.6); l.position.set(x + 0.6, 1.1, py + 0.8); mapGroup.add(l); }
+            count++;
+          }
+          break;
+        }
+      }
+    }
 
     // canopy walkways: wooden decks with snow
     const slabMat = new THREE.MeshStandardMaterial({ color: palette.platform, roughness: 0.85 });
@@ -609,6 +859,8 @@ export function makeScene3D(container, palette) {
       you.position.set(px, py, pz);
       you.rotation.y = -P.facing;
       ring.visible = me.inTree === null;
+      torchBeam.visible = me.inTree === null && !mapView;
+      beamMat.opacity = 0.07 * flashFlick;
       if (goalMark.visible && me.node !== undefined && goalMark.position.distanceTo(cellV(me.node, 0.05)) < 0.1) goalMark.visible = false;
       goalMark.rotation.z = now / 600;
       // walking: legs and arms swing; in a tree: legs bent, arms up
@@ -624,8 +876,7 @@ export function makeScene3D(container, palette) {
       }
       figure.position.y = walk ? Math.abs(Math.sin(now / 105)) * 0.04 : 0;
       // the tree you could climb
-      const action = g.over ? null : actionFor(g);
-      climbRing.visible = action === 'climb';
+      climbRing.visible = !g.over && actionsFor(g).climb === 'up';
       if (climbRing.visible) {
         const t = treeNextTo(world, me.node, me.facing);
         climbRing.position.set((t % world.W) + 0.5, 0.05, Math.floor(t / world.W) + 0.5);
@@ -636,6 +887,7 @@ export function makeScene3D(container, palette) {
       // the flashlight flickers when it is close; in a tree you keep it down
       const near = me.knownCreature !== null && g.step - me.knownStep <= 3 ? Math.max(0, 1 - g.distances.path / 7) : 0;
       const flick = near > 0 && Math.random() < 0.12 + near * 0.3 ? 0.15 + Math.random() * 0.4 : 1;
+      flashFlick = flick;
       flashlight.intensity = (me.inTree !== null ? 5 : 16) * flick;
       flashlight.position.set(px + fx * 0.3, py + 1.1, pz + fz * 0.3);
       flashlight.target.position.set(px + fx * 7, me.inTree !== null ? 0 : py + 0.1, pz + fz * 7);
@@ -643,7 +895,7 @@ export function makeScene3D(container, palette) {
       glow.intensity = me.inTree !== null ? 0.7 : 1.6;
       // camera: follow from the south and above; when it gets you, it lunges into view
       let target = mapView ? new THREE.Vector3(world.W / 2, 0, world.H / 2) : new THREE.Vector3(px, 0, pz);
-      let off = mapView ? new THREE.Vector3(0, 40, 5) : new THREE.Vector3(0, 15.5 * zoom, 10.5 * zoom);
+      let off = mapView ? new THREE.Vector3(0, 52, 9) : new THREE.Vector3(0, 15.5 * zoom, 10.5 * zoom);
       if (g.over && g.result === 'lose' && Q) {
         target = new THREE.Vector3(Q.x, 1.8, Q.y);
         off.set(Math.cos(Q.facing) * 2.6, 0.6, Math.sin(Q.facing) * 2.6);
@@ -677,6 +929,7 @@ export function makeScene3D(container, palette) {
     ice.opacity = bark.opacity;
     ember.opacity = Math.min(1, 0.35 + creatureVis); // the eyes show first
     creatureLight.intensity = 4 * creatureVis;
+    creatureShadow.material.opacity = 0.45 * creatureVis;
     fan.visible = visible && creatureVis > 0.6 && g.creature.frozenLeft === 0 && !g.over;
     if (Q) {
       creature.position.set(Q.x, Q.z, Q.y);

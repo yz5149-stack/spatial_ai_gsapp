@@ -118,11 +118,12 @@ kbd { font: 600 0.78rem ui-monospace, Menlo, monospace; padding: 1px 6px; border
 
 .minimap { position: absolute; z-index: 2; right: 12px; bottom: 12px; width: clamp(150px, 20%, 260px); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.12); opacity: 0.88; pointer-events: none; }
 .minimap canvas { display: block; width: 100%; }
-.prompt { position: absolute; z-index: 3; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 99px; background: rgba(7, 9, 13, 0.82); border: 1px solid rgba(255, 255, 255, 0.16); font-weight: 650; pointer-events: none; animation: pop 0.2s ease-out; }
+.prompts { position: absolute; z-index: 3; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: none; }
+.prompt { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 99px; background: rgba(7, 9, 13, 0.82); border: 1px solid rgba(255, 255, 255, 0.16); font-weight: 650; pointer-events: none; animation: pop 0.2s ease-out; }
 .prompt kbd { font-size: 0.85rem; }
 .prompt.shoot { border-color: var(--creature); box-shadow: 0 0 22px rgba(255, 59, 48, 0.45); }
 .prompt.climb { border-color: var(--rel); }
-@keyframes pop { from { transform: translate(-50%, 6px); opacity: 0; } }
+@keyframes pop { from { transform: translateY(6px); opacity: 0; } }
 .treebar { position: absolute; z-index: 3; left: 50%; bottom: 70px; transform: translateX(-50%); width: 220px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
 .treebar b { display: block; height: 100%; background: linear-gradient(90deg, #ff8a4a, var(--hidden)); }
 .howto { display: grid; gap: 8px; text-align: left; margin: 16px auto; max-width: 440px; }
@@ -137,12 +138,13 @@ kbd { font: 600 0.78rem ui-monospace, Menlo, monospace; padding: 1px 6px; border
 /* touch controls, only on touch screens */
 .touch { display: none; position: absolute; z-index: 3; inset: auto 0 10px 0; padding: 0 12px; justify-content: space-between; align-items: end; pointer-events: none; }
 .touch .pad { display: grid; grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(3, 46px); gap: 4px; pointer-events: auto; }
-.touch .acts { display: grid; gap: 8px; pointer-events: auto; }
+.touch .acts { display: flex; gap: 10px; pointer-events: auto; }
+.touch .acts .hide { background: rgba(94, 227, 154, 0.55); }
 .touch button { border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(16, 20, 27, 0.75); font-weight: 700; font-size: 0.85rem; touch-action: none; user-select: none; -webkit-user-select: none; }
 .touch .pad button { width: 46px; height: 46px; }
 .touch .acts button { width: 96px; height: 64px; }
 .touch .acts .fire { background: rgba(255, 59, 48, 0.8); }
-@media (hover: none) and (pointer: coarse) { .touch { display: flex; } .hud-bl { bottom: 170px; } .minimap { top: 70px; bottom: auto; width: 130px; } .prompt { bottom: 180px; } }
+@media (hover: none) and (pointer: coarse) { .touch { display: flex; } .hud-bl { bottom: 170px; } .minimap { top: 70px; bottom: auto; width: 130px; } .prompts { bottom: 180px; } }
 
 /* ---- side ---- */
 .side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }

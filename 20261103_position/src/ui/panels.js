@@ -6,11 +6,6 @@ import { statusOf } from '../sim/escape.js';
 const $ = (id) => document.getElementById(id);
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const DIFF = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
-const PROMPT = {
-  shoot: 'Shoot it: freezes it for 3 seconds',
-  climb: 'Climb the tree and hide',
-  down: 'Climb down (or just move)',
-};
 
 export function makePanels() {
   const log = $('log');
@@ -34,13 +29,14 @@ export function makePanels() {
     $('chip-tree').classList.toggle('on', st.inTree);
     $('chip-alarm').classList.toggle('on', game.alarmLeft > 0);
     $('chip-frozen').classList.toggle('on', game.creature.frozenLeft > 0 && me.seesCreature);
-    // the one action key: what it would do now
-    const prompt = $('prompt');
-    prompt.hidden = !st.action || game.over;
-    if (st.action) {
-      prompt.className = `prompt ${st.action}`;
-      $('prompt-text').textContent = PROMPT[st.action];
-    }
+    // the two keys: what each would do now
+    const acts = st.actions;
+    const ps = $('prompt-shoot');
+    const pc = $('prompt-climb');
+    ps.hidden = !acts.shoot || game.over;
+    pc.hidden = !acts.climb || game.over;
+    if (acts.climb) $('prompt-climb-text').textContent = acts.climb === 'down' ? 'Climb down (or just move)' : 'Climb the tree and hide';
+    $('prompts').hidden = ps.hidden && pc.hidden;
     const bar = $('treebar');
     bar.hidden = !st.inTree;
     if (st.inTree) bar.firstElementChild.style.width = `${(100 * me.treeLeft) / g.treeTicks}%`;
@@ -86,7 +82,7 @@ export function makePanels() {
       what.textContent = e.text;
       li.append(what);
       log.prepend(li);
-      if (['case', 'shot', 'caw', 'spot', 'ambush', 'noshot', 'alarm', 'thaw', 'start', 'climb', 'slip'].includes(e.kind)) toast(e.text);
+      if (['case', 'shot', 'caw', 'spot', 'ambush', 'noshot', 'notree', 'alarm', 'thaw', 'start', 'climb', 'slip'].includes(e.kind)) toast(e.text);
     }
     while (log.children.length > 60) log.lastChild.remove();
   }

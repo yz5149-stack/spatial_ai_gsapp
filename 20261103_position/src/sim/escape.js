@@ -2,9 +2,9 @@
 // door on the east side while a creature made of roots hunts you. You win at the door with the case;
 // you lose when the creature reaches you (same or neighbouring cell) or when the night runs out.
 //
-// Input per tick: { dx, dy } in -1..1 (a direction on the map) and action (edge-triggered).
-// The one action key does what fits: climb down if you are in a tree; shoot if the creature is in
-// range and in the clear; climb the nearest tree if one is next to you.
+// Input per tick: { dx, dy } in -1..1 (a direction on the map), shoot and climb (edge-triggered).
+// Shoot fires if the creature is in range and in the clear. Climb gets you into the tree next to
+// you, or down from the one you are in.
 
 import { makeRng } from './rng.js';
 import { segmentClear, eyePoint } from './los.js';
@@ -26,7 +26,13 @@ export function newRun(ctx, { difficulty = 'normal', round = 1, seed = ctx.seed 
   const exposures = world.nodes.map((n) => ctx.exposure(n)).sort((a, b) => a - b);
   const median = exposures[Math.floor(exposures.length / 2)];
   const fromDoor = pf.row(door);
-  let caseOptions = world.nodes.filter((n) => n !== door && ctx.exposure(n) <= median && fromDoor[world.nodeIndex[n]] >= g.caseFromDoor);
+  // On a designed map the case lies in a clearing off the trail.
+  // the clearing farthest (walking) from the hospital, or the second farthest now and then
+  let caseOptions = (world.clearings ?? []).map((c) => c.y * world.W + c.x)
+    .filter((n) => world.walk[n] === 1 && fromDoor[world.nodeIndex[n]] >= g.caseFromDoor * 0.8)
+    .sort((a, b) => fromDoor[world.nodeIndex[b]] - fromDoor[world.nodeIndex[a]]);
+  if (caseOptions.length > 1) caseOptions = rng.chance(0.7) ? caseOptions.slice(0, 1) : caseOptions.slice(1, 2);
+  if (!caseOptions.length) caseOptions = world.nodes.filter((n) => n !== door && ctx.exposure(n) <= median && fromDoor[world.nodeIndex[n]] >= g.caseFromDoor);
   if (!caseOptions.length) caseOptions = world.nodes.filter((n) => fromDoor[world.nodeIndex[n]] >= g.caseFromDoor * 0.7);
   const caseNode = rng.pick(caseOptions);
   const fromCase = pf.row(caseNode);
@@ -36,6 +42,22 @@ export function newRun(ctx, { difficulty = 'normal', round = 1, seed = ctx.seed 
   const creatureOptions = world.nodes.filter((n) => { const d = fromCase[world.nodeIndex[n]]; return d >= cMin && d <= cMax; });
   let creature = null;
   let start = null;
+  // you start next to the car, where the trail begins
+  if (world.car) {
+    const spots = [0, 1, -1, 2].map((dy) => (world.car.y + dy) * world.W + world.car.x + world.car.w).filter((n) => world.walk[n] === 1);
+    if (spots.length) {
+      start = spots[0];
+      const row0 = pf.row(start);
+      let best = null;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const n = rng.pick(creatureOptions);
+        const ok = row0[world.nodeIndex[n]] >= 12 && ctx.metrics.euclidean(n, start) > config.visionRange;
+        if (ok) { best = n; break; }
+        if (best === null || row0[world.nodeIndex[n]] > row0[world.nodeIndex[best]]) best = n;
+      }
+      creature = newCreature(best, rng.pick(FACINGS));
+    }
+  }
   for (let attempt = 0; attempt < 200 && start === null; attempt++) {
     creature = newCreature(rng.pick(creatureOptions), rng.pick(FACINGS));
     const row = pf.row(creature.node);
@@ -152,29 +174,37 @@ function shoot(game) {
   game.log('player', 'shot', `Hit! It is frozen for 3 seconds. Run! (${me.ammo} bullet${me.ammo === 1 ? '' : 's'} left)`);
 }
 
-// What the action key would do now: 'down', 'shoot', 'climb' or null. The HUD shows it.
-export function actionFor(game) {
+// What the two keys would do now. The HUD shows them.
+//   shoot: true when a shot would hit
+//   climb: 'up' (a tree is next to you), 'down' (you are in a tree) or null
+export function actionsFor(game) {
   const me = game.player;
-  if (me.busy > 0) return null;
-  if (me.inTree !== null) return 'down';
-  if (canShoot(game)) return 'shoot';
-  if (me.treeCooldown === 0 && treeNextTo(game.ctx.world, me.node, me.facing) !== null) return 'climb';
-  return null;
+  if (me.busy > 0) return { shoot: false, climb: null };
+  return {
+    shoot: canShoot(game),
+    climb: me.inTree !== null ? 'down' : (me.treeCooldown === 0 && treeNextTo(game.ctx.world, me.node, me.facing) !== null ? 'up' : null),
+  };
 }
 
-function act(game) {
+function tryShoot(game) {
+  const me = game.player;
+  if (canShoot(game)) { shoot(game); return; }
+  if (me.inTree !== null || me.busy > 0) return;
+  if (me.ammo <= 0) game.log('player', 'noshot', 'No bullets left. Hide or run!');
+  else if (!me.seesCreature) game.log('player', 'noshot', 'Nothing to shoot at.');
+  else if (game.creature.frozenLeft === 0) game.log('player', 'noshot', 'Too far to shoot. Let it come closer, or get away.');
+}
+
+function tryClimb(game) {
   const me = game.player;
   const g = game.ctx.config.game;
-  const what = actionFor(game);
+  const what = actionsFor(game).climb;
   if (what === 'down') { me.busy = g.climbTicks; me.climbing = 'down'; }
-  else if (what === 'shoot') shoot(game);
-  else if (what === 'climb') {
+  else if (what === 'up') {
     me.busy = g.climbTicks;
     me.climbing = 'up';
     me.climbTree = treeNextTo(game.ctx.world, me.node, me.facing);
-  } else if (me.ammo > 0 && me.seesCreature && game.creature.frozenLeft === 0) {
-    game.log('player', 'noshot', 'Too far to shoot. Let it come closer, or get away.');
-  }
+  } else if (me.busy === 0) game.log('player', 'notree', 'No tree right next to you.');
 }
 
 function caught(game) {
@@ -237,8 +267,10 @@ export function stepRun(game, input = {}) {
       }
       me.climbing = null;
     }
-  } else if (input.action) {
-    act(game);
+  } else if (input.shoot) {
+    tryShoot(game);
+  } else if (input.climb) {
+    tryClimb(game);
   } else if (me.inTree !== null) {
     me.treeLeft--;
     if (moving) { me.busy = g.climbTicks; me.climbing = 'down'; }
@@ -295,7 +327,7 @@ export const statusOf = (game) => ({
   sees: game.creature.seesPlayer,
   hears: game.sounds.some((s) => s.who === 'player' && s.creatureHeard),
   inTree: game.player.inTree !== null,
-  action: actionFor(game),
+  actions: actionsFor(game),
 });
 
 export function directionTo(world, from, to) {
