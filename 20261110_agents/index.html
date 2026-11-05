@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frostroot: Agents</title>
+  <meta name="description" content="Two spatial agents in a snowy maze-forest. A creature of roots maps the forest with its red vision cone, like a robot vacuum, leaving landmarks; then it hunts a survivor by sound, planning on its own map.">
+  <link rel="stylesheet" href="style.css?v=20261110b">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "./src/render/plans.js": "./src/render/plans.js?v=20261110b",
+        "./src/render/scene3d.js": "./src/render/scene3d.js?v=20261110b",
+        "./src/sim/config.js": "./src/sim/config.js?v=20261110b",
+        "./src/sim/knowledge.js": "./src/sim/knowledge.js?v=20261110b",
+        "./src/sim/los.js": "./src/sim/los.js?v=20261110b",
+        "./src/sim/maze.js": "./src/sim/maze.js?v=20261110b",
+        "./src/sim/rng.js": "./src/sim/rng.js?v=20261110b",
+        "./src/sim/sim.js": "./src/sim/sim.js?v=20261110b",
+        "./src/sim/world.js": "./src/sim/world.js?v=20261110b",
+        "./src/ui/main.js": "./src/ui/main.js?v=20261110b",
+        "./src/ui/audio.js": "./src/ui/audio.js?v=20261110b"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Spatial AI &middot; Columbia GSAPP &middot; Spatial Agents</p>
+      <h1>Frostroot<span>:</span> Agents</h1>
+    </div>
+    <p class="lede">Seen from the creature. It wakes knowing nothing, maps the forest with its red eyes, and remembers.
+      Then a survivor appears, and it hunts by sound.</p>
+  </header>
+
+  <main>
+    <section class="stage" aria-label="Simulation">
+      <div class="viewer" id="viewer">
+        <div class="scene" id="scene"></div>
+        <div class="vignette" id="vignette"></div>
+        <div class="hud hud-tl hud-box">
+          <div class="phase" id="phase">Phase 1 · Mapping the forest</div>
+          <div class="phase-sub" id="phase-sub"></div>
+          <div class="cov"><b id="cov-bar"></b></div>
+        </div>
+        <div class="toast hide" id="toast"></div>
+        <div class="screen" id="screen-start">
+          <div class="card">
+            <h2>Frostroot: Agents</h2>
+            <p>Two agents in a snowy maze-forest, both starting with no map.</p>
+            <div class="howto">
+              <div><b>Phase 1</b><span>The creature explores with its red vision cone, like a robot vacuum, until it has seen everything. It drops landmarks at dead ends, clearings and the hospital door.</span></div>
+              <div><b>Phase 2</b><span>A survivor appears. It explores east to find the hospital. The creature hunts it by sound, planning routes on the map it built.</span></div>
+              <div><b>You</b><span>Click anywhere on the forest or the maps to put the survivor there. It cries out, and the creature plans its way to you.</span></div>
+            </div>
+            <p><button type="button" class="btn btn-primary" id="btn-start">Start</button></p>
+            <p class="small">Sound on for the full effect. Space: pause &middot; V: change the view</p>
+          </div>
+        </div>
+        <div class="viewer-fallback" id="viewer-fallback" hidden>The 3D view could not start (three.js did not load). The maps still work.</div>
+      </div>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Speed">
+          <button type="button" data-speed="1" class="on">1&times;</button>
+          <button type="button" data-speed="2">2&times;</button>
+          <button type="button" data-speed="4">4&times;</button>
+          <button type="button" data-speed="8">8&times;</button>
+        </div>
+        <button type="button" class="btn" id="btn-pause">Pause</button>
+        <button type="button" class="btn" id="btn-skip">Skip mapping</button>
+        <button type="button" class="btn" id="btn-ff">+20 rounds</button>
+        <button type="button" class="btn" id="btn-view">Whole forest</button>
+        <button type="button" class="btn" id="btn-new">New map</button>
+        <button type="button" class="btn" id="btn-sound">Sound: on</button>
+        <span class="map-seed" id="map-seed"></span>
+      </div>
+    </section>
+
+    <section class="maps">
+      <div class="panel map-panel">
+        <div class="panel-head"><h2>The creature&rsquo;s map</h2><span class="hint">click to place the survivor</span></div>
+        <canvas id="plan-creature" class="plan"></canvas>
+        <div class="legend">
+          <span><i class="sw" style="--c:#05070a;outline:1px solid #333"></i>never seen</span>
+          <span><i class="sw" style="--c:#b9c4cf"></i>seen ground</span>
+          <span><i class="sw" style="--c:#c9555a"></i>walked (trajectory)</span>
+          <span><i class="sw" style="--c:#26303b"></i>trees, rocks</span>
+          <span><i class="sw dash" style="--c:#ff8a7a"></i>planned route</span>
+        </div>
+        <div class="overlays">
+          <label><input type="checkbox" id="ov-paths"> All survivors&rsquo; paths (green escaped, red caught)</label>
+          <label><input type="checkbox" id="ov-heat"> Where survivors were heard (heatmap)</label>
+        </div>
+      </div>
+      <div class="side">
+        <div class="panel map-panel">
+          <div class="panel-head"><h2>The survivor&rsquo;s map</h2></div>
+          <canvas id="plan-survivor" class="plan"></canvas>
+        </div>
+        <div class="panel">
+          <h2>Rounds</h2>
+          <div class="tally" id="tally"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cards">
+      <div class="panel agent creature">
+        <div class="agent-head"><span class="dot"></span>The creature <span class="mode" id="c-mode"></span></div>
+        <dl><dt>Goal</dt><dd id="c-goal"></dd><dt>Measured by</dt><dd id="c-crit"></dd></dl>
+        <div class="stats" id="c-stats"></div>
+        <div class="tags"><span class="tag" id="c-hears">Hears footsteps</span><span class="tag" id="c-sees">Sees the survivor</span></div>
+      </div>
+      <div class="panel agent survivor" id="s-card">
+        <div class="agent-head"><span class="dot"></span>The survivor <span class="mode" id="s-mode"></span></div>
+        <dl><dt>Goal</dt><dd>Reach the hospital (it was told: east)</dd><dt>Measured by</dt><dd>Time and steps, without being caught</dd></dl>
+        <div class="stats" id="s-stats"></div>
+        <div class="tags"><span class="tag" id="s-sees">Sees the creature</span><span class="tag" id="s-hears">Hears it</span></div>
+      </div>
+      <div class="panel">
+        <h2>The creature&rsquo;s landmarks</h2>
+        <p class="caption">Each one is remembered relative to one it made before, not as map coordinates.</p>
+        <ul class="lm-list" id="lm-list"></ul>
+      </div>
+      <div class="panel">
+        <h2>Log</h2>
+        <ol class="log" id="log"></ol>
+      </div>
+    </section>
+
+    <section class="panel how" aria-label="How it answers the assignment">
+      <h2>How the agents work</h2>
+      <div class="how-grid">
+        <div><h3>1&ndash;2 &middot; Little knowledge, a cone of vision</h3><p>Both agents spawn knowing only the cells around them. They see along a cone (the creature 100&deg;, 8 cells, red; the survivor 110&deg;, 6 cells, a flashlight). Rays stop at the first tree, rock or bush. Everything they know is drawn on their own map.</p></div>
+        <div><h3>3 &middot; Obstacles and other agents</h3><p>They plan only through ground they have seen. The survivor gives the creature a wide berth: cells near where it last saw or heard it cost more, and it runs from it.</p></div>
+        <div><h3>4 &middot; Goals and how they are measured</h3><p>Creature, phase 1: map the forest, measured by coverage and cells seen per step. Phase 2: catch the survivor. Survivor: reach the hospital, measured by time and steps.</p></div>
+        <div><h3>5 &middot; Mapping (like a robot vacuum)</h3><p>The creature always walks to the nearest frontier (seen ground next to unseen ground), preferring what is ahead, so it sweeps a corridor to its end before turning. The survivor does the same, biased east.</p></div>
+        <div><h3>6 &middot; Landmarks</h3><p>A dead end (closed on three sides), a clearing (open on all sides), the hospital door, footsteps heard, the creature seen. Each is stored relative to the previous one: &ldquo;D3: 6 E, 4 S of C1&rdquo;.</p></div>
+        <div><h3>7 &middot; Using its landmarks</h3><p>On hearing a sound, the creature plans the shortest route on its own map. When it loses the trail it checks the dead ends it remembers nearby, because that is where a survivor gets trapped. The survivor runs straight for the door once it has seen it, and never flees into a dead end it has marked.</p></div>
+        <div><h3>8 &middot; One agent&rsquo;s spatial knowledge</h3><p>The two maps above are exactly what each agent knows: seen and unseen ground, its trajectory, its landmarks, its current route.</p></div>
+        <div><h3>9&ndash;10 &middot; Many agents, together</h3><p>Rounds repeat with new survivors and the creature keeps its memory. <b>+20 rounds</b> runs them at once; the overlays show all survivors&rsquo; paths and a heatmap of where they were heard.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-foot">
+    <p>Ryan Fu &middot; Lu Liu &middot; Yifan Zhao</p>
+    <p>Spatial AI, Columbia GSAPP, fall 2026. An original simulation; built with three.js 0.160.0. Sound is synthesized in the browser.</p>
+  </footer>
+  <script type="module" src="src/ui/main.js?v=20261110b"></script>
+</body>
+</html>

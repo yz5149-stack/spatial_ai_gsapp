@@ -12,3 +12,4 @@ Each folder holds the contents of one former branch:
 - [`20261008_location/`](20261008_location/) — LLM-only spatial model prompt, trial runs, and interactive lab page.
 - [`20261022_distance/`](20261022_distance/) — Misty Forest Chase: a 3D diamond heist in a misty two-level forest, comparing Euclidean, acoustic, path and perceptual distance; with slides in [`20261022_distance/slides/`](20261022_distance/slides/).
 - [`20261103_position/`](20261103_position/) — Frostroot: Night Run: a playable night escape built on prepositions of place and movement. Hide among cover, slip past the root creature, and carry the vaccine case to the hospital.
+- [`20261110_agents/`](20261110_agents/) — Frostroot: Agents: two spatial agents in a maze-forest. The creature maps it with its red vision cone like a robot vacuum, leaving landmarks, then hunts a survivor by sound on the map it built.
