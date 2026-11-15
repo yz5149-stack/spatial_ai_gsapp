@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Last Open Store</title>
+  <meta name="description" content="A spatial simulation and design tool: survivors and a creature in a procedurally generated convenience store during a real Manhattan blizzard. Design, compare and evolve store layouts.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20261201a">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <div class="neon" aria-hidden="true"><span>OPEN</span><small>24H</small></div>
+      <div>
+        <p class="eyebrow">Spatial AI · Columbia GSAPP · Final</p>
+        <h1>Last Open Store</h1>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Views">
+      <button type="button" data-tab="store" class="on">The store</button>
+      <button type="button" data-tab="choose">Choose</button>
+      <button type="button" data-tab="evolve">Evolve</button>
+      <button type="button" data-tab="brief">How it works</button>
+    </nav>
+  </header>
+
+  <!-- ===================================================== THE STORE -->
+  <main class="tab" id="tab-store">
+    <section class="stage">
+      <div class="viewer" id="viewer">
+        <div class="scene" id="scene" tabindex="0"></div>
+        <div class="vignette" id="vignette"></div>
+        <div class="hud hud-tl">
+          <div class="hud-row"><b id="hud-night">Night 1</b><span id="hud-clock">0:00</span></div>
+          <div class="hud-cond" id="hud-cond"></div>
+          <div class="hud-row"><span class="chip creature" id="hud-creature">coming in</span></div>
+        </div>
+        <div class="hud hud-tr" id="hud-survivors"></div>
+        <div class="hud hud-bottom play-only" id="play-list"></div>
+        <div class="toast hide" id="toast"></div>
+
+        <div class="screen" id="screen-start">
+          <div class="card">
+            <p class="eyebrow">Morningside Heights · a blizzard night</p>
+            <h2>The last store with its lights on</h2>
+            <p>Survivors come in from the snow with a shopping list. They don’t know the store. Something came in through the stockroom door before them, and it remembers every night.</p>
+            <div class="howto">
+              <div><b>Watch</b><span>Two kinds of agents explore, remember landmarks and plan routes, each knowing only what it has seen.</span></div>
+              <div><b>Design</b><span>Edit the store, then let it evolve: compare two variations, or run epochs of generated stores scored by how the agents do.</span></div>
+              <div><b>Play</b><span>Go in yourself. WASD to move, Shift to run, C to crouch behind the 54″ shelves.</span></div>
+            </div>
+            <button type="button" class="btn btn-primary" id="btn-start">Open the door</button>
+          </div>
+        </div>
+        <div class="screen" id="play-help" hidden>
+          <div class="card">
+            <p class="eyebrow">You are the first survivor in tonight</p>
+            <h2>Get your list. Get out.</h2>
+            <div class="keys">
+              <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>move (or arrows)</span></div>
+              <div><kbd>Shift</kbd><span>run: fast, and loud</span></div>
+              <div><kbd>C</kbd><span>crouch: slow, quiet, hidden behind low shelves</span></div>
+              <div><kbd>stand still</kbd><span>next to a shelf on your list to take it</span></div>
+              <div><kbd>door</kbd><span>walk out through the front door (press S on it)</span></div>
+            </div>
+            <p class="small">The creature hunts by sound. Wet floors slip, crushed bags crunch, rubber mats are quiet.</p>
+            <button type="button" class="btn btn-primary" id="btn-play-go">Go in</button>
+          </div>
+        </div>
+        <div class="play-result" id="play-result" hidden>
+          <h2 id="play-result-title"></h2>
+          <p id="play-result-body"></p>
+          <button type="button" class="btn btn-primary" id="btn-play-again">Try again</button>
+        </div>
+        <div class="viewer-fallback" id="viewer-fallback" hidden>The 3D view could not start. The plan and every tool still work.</div>
+      </div>
+
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Mode">
+          <button type="button" data-mode="watch" class="on">Watch</button>
+          <button type="button" data-mode="play">Play</button>
+        </div>
+        <button type="button" class="btn" id="btn-pause">Pause</button>
+        <div class="seg watch-only" role="group" aria-label="Speed">
+          <button type="button" data-speed="1">1×</button>
+          <button type="button" data-speed="2" class="on">2×</button>
+          <button type="button" data-speed="4">4×</button>
+          <button type="button" data-speed="8">8×</button>
+        </div>
+        <button type="button" class="btn watch-only" id="btn-ff" title="Run ten nights at once and show where everyone went">+10 nights</button>
+        <div class="seg watch-only" role="group" aria-label="Camera">
+          <button type="button" data-cam="orbit" class="on">Orbit</button>
+          <button type="button" data-cam="top">Plan</button>
+          <button type="button" data-cam="creature">Creature</button>
+          <button type="button" data-cam="follow">Survivor</button>
+        </div>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="btn-restart">Restart nights</button>
+        <button type="button" class="btn" id="btn-new">New store</button>
+        <button type="button" class="btn" id="btn-share">Share</button>
+        <button type="button" class="btn" id="btn-sound" data-on="0">Sound off</button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-head"><h2>Plan</h2><span class="store-id" id="store-id"></span></div>
+        <div class="chips" role="group" aria-label="Plan layer">
+          <button type="button" data-layer="truth" class="on">Store</button>
+          <button type="button" data-layer="creature">Creature’s map</button>
+          <button type="button" data-layer="survivor">Survivor’s map</button>
+          <button type="button" data-layer="trails">Paths</button>
+          <button type="button" data-layer="heard">Heard / caught</button>
+          <button type="button" data-layer="light">Daylight</button>
+        </div>
+        <div class="plan-wrap"><canvas id="plan" class="plan"></canvas></div>
+        <div class="tools" role="group" aria-label="Design tools">
+          <button type="button" data-tool="inspect" class="on" title="Inspect: hover to read locations and distances; click a survivor to follow it">Inspect</button>
+          <button type="button" data-tool="height" title="Raise or lower a gondola (72″ hides a standing person, 54″ only a crouching one)">Height</button>
+          <button type="button" data-tool="turn" title="Turn a gondola 90°">Turn</button>
+          <button type="button" data-tool="products" title="Change what a gondola stocks">Stock</button>
+          <button type="button" data-tool="sign" title="Hang or remove an aisle sign (survivors read the whole aisle from 6 m)">Sign</button>
+          <button type="button" data-tool="add" title="Add a 3.5 m gondola">+ Gondola</button>
+          <button type="button" data-tool="boxes" title="Stack cartons (an obstacle you can see over)">Cartons</button>
+          <button type="button" data-tool="remove" title="Remove a gondola or cartons">Remove</button>
+          <button type="button" data-tool="wet" class="z wet" title="Wet floor: 45% slower, and a slip is loud">Wet</button>
+          <button type="button" data-tool="dark" class="z dark" title="Lights out: hard to see into, a place to hide">Dark</button>
+          <button type="button" data-tool="noisy" class="z noisy" title="Crushed bags and bottles: footsteps carry">Noisy</button>
+          <button type="button" data-tool="mat" class="z mat" title="Rubber mat: quiet, sure-footed">Mat</button>
+          <button type="button" data-tool="erase" title="Clear a floor zone">Clear floor</button>
+          <button type="button" data-tool="door" title="Click the storefront to move the front door">Front door</button>
+          <button type="button" data-tool="back" title="Click a back or side wall to move the stockroom door">Stockroom</button>
+        </div>
+        <p class="tool-hint" id="tool-hint">Inspect: hover to read locations and distances; click a survivor to follow it</p>
+        <div class="inspector" id="inspector"></div>
+      </div>
+
+      <div class="panel cond">
+        <div class="panel-head"><h2>Tonight’s conditions</h2><span class="tag on">real data</span></div>
+        <div class="cond-pick">
+          <select id="cond-preset" aria-label="Date">
+            <option value="blizzard">Blizzard · 23 Jan 2016</option>
+            <option value="winterDusk">Snowy dusk · 15 Jan 2026</option>
+            <option value="winterNoon">Winter noon · 21 Dec 2025</option>
+            <option value="live">Live · right now</option>
+          </select>
+          <label class="hour">Hour <input type="range" id="cond-hour" min="0" max="23" step="1" value="21"> <b id="cond-hour-label">21:00</b></label>
+        </div>
+        <div class="cond-values" id="cond-values"></div>
+        <ul class="cond-effects" id="cond-effects"></ul>
+        <p class="cond-status" id="cond-status"></p>
+      </div>
+    </aside>
+
+    <section class="cards">
+      <div class="panel agent creature-card">
+        <div class="agent-head"><span class="dot"></span><h2>The creature</h2><span class="mode" id="c-state"></span></div>
+        <dl class="goal"><dt>Goal</dt><dd>Catch survivors before they leave</dd><dt>Measured by</dt><dd>Catch rate, time to first catch</dd></dl>
+        <div class="stats" id="c-stats"></div>
+        <div class="tags" id="c-senses"></div>
+      </div>
+      <div class="panel survivors-card">
+        <div class="agent-head"><span class="dot amber"></span><h2>Survivors</h2><span class="mode">click one to follow</span></div>
+        <dl class="goal"><dt>Goal</dt><dd>Collect the list, leave alive</dd><dt>Measured by</dt><dd>Escaped, items found, time inside</dd></dl>
+        <div class="s-list" id="s-list"></div>
+      </div>
+      <div class="panel nights-card">
+        <div class="panel-head"><h2>Nights in this store</h2><span class="legend-inline"><i class="sw" style="--c:#5ff2c8"></i>escaped <i class="sw" style="--c:#ff3b4e"></i>caught</span></div>
+        <div class="stats" id="score-summary"></div>
+        <canvas id="nights-chart" class="mini-chart"></canvas>
+        <table class="nights"><thead><tr><th>Night</th><th>Out</th><th>Caught</th><th>Items</th><th>Escape</th><th>1st catch</th></tr></thead><tbody id="nights-body"></tbody></table>
+      </div>
+      <div class="panel">
+        <h2 id="lm-title">The creature’s landmarks</h2>
+        <p class="caption">Remembered relative to the one before, the way you give directions.</p>
+        <ul class="lm-list" id="lm-list"></ul>
+      </div>
+      <div class="panel log-card">
+        <h2>Log</h2>
+        <ol class="log" id="log"></ol>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================================================== CHOOSE -->
+  <main class="tab" id="tab-choose" hidden>
+    <section class="panel intro">
+      <div>
+        <h2>Choose your store</h2>
+        <p>Two variations of the same store run side by side with the same survivors arriving at the same times. Keep the one you prefer; two new variations grow from it.</p>
+        <p class="muted" id="choose-parent"></p>
+      </div>
+      <div class="intro-controls">
+        <label>Judge by <select id="choose-objective"></select></label>
+        <p class="small muted" id="choose-obj-blurb"></p>
+        <label>Changes <select id="choose-strength"><option value="1">small</option><option value="2">bold</option><option value="3">wild</option></select></label>
+        <label>Show <select id="choose-layer"><option value="truth">store and agents</option><option value="trails">all paths</option><option value="heard">heard / caught</option><option value="creature">creature’s map</option></select></label>
+        <div class="row"><button type="button" class="btn" id="choose-reroll">New pair</button><button type="button" class="btn" id="choose-from-store">Start from the current store</button></div>
+      </div>
+    </section>
+    <section class="pair">
+      <div class="panel choice" id="choose-A">
+        <div class="panel-head"><h2>A</h2><span class="muted" id="choose-A-live"></span></div>
+        <div class="plan-wrap"><canvas id="choose-A-plan" class="plan"></canvas></div>
+        <ul class="edits" id="choose-A-edits"></ul>
+        <div class="choice-stats" id="choose-A-stats"></div>
+        <div class="row"><button type="button" class="btn btn-primary" id="choose-A-pick">Keep A</button><button type="button" class="btn" id="choose-A-open">Open in 3D</button></div>
+      </div>
+      <div class="vs">vs</div>
+      <div class="panel choice" id="choose-B">
+        <div class="panel-head"><h2>B</h2><span class="muted" id="choose-B-live"></span></div>
+        <div class="plan-wrap"><canvas id="choose-B-plan" class="plan"></canvas></div>
+        <ul class="edits" id="choose-B-edits"></ul>
+        <div class="choice-stats" id="choose-B-stats"></div>
+        <div class="row"><button type="button" class="btn btn-primary" id="choose-B-pick">Keep B</button><button type="button" class="btn" id="choose-B-open">Open in 3D</button></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Lineage</h2>
+      <p class="caption">Every store you kept. Click one to branch again from it.</p>
+      <div class="strip" id="lineage"></div>
+    </section>
+  </main>
+
+  <!-- ===================================================== EVOLVE -->
+  <main class="tab" id="tab-evolve" hidden>
+    <section class="panel intro">
+      <div>
+        <h2>Evolve stores</h2>
+        <p>Generate a population of stores, run nights in each, score the agents’ performance, keep the best, mutate them, and repeat. Each epoch is one round of generating and scoring.</p>
+        <p class="small muted" id="evo-obj-blurb"></p>
+      </div>
+      <div class="intro-controls grid2">
+        <label>Goal <select id="evo-objective"></select></label>
+        <label>Start from <select id="evo-start"><option value="random">random stores</option><option value="store">the current store</option></select></label>
+        <label>Stores per epoch <select id="evo-pop"><option>6</option><option selected>8</option><option>12</option></select></label>
+        <label>Epochs <select id="evo-epochs"><option>5</option><option selected>10</option><option>20</option></select></label>
+        <label>Nights per store <select id="evo-nights"><option>3</option><option selected>5</option><option>8</option></select></label>
+        <div class="row"><button type="button" class="btn btn-primary" id="evo-run">Run evolution</button><button type="button" class="btn" id="evo-stop" disabled>Stop</button></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="progress" id="evo-progress"><i></i></div>
+      <p class="muted" id="evo-status">Ready. Every store is tested with the same two groups of survivors, so scores compare layouts, not luck.</p>
+      <canvas id="evo-chart" class="evo-chart"></canvas>
+    </section>
+    <section class="panel">
+      <h2>Best store of each epoch</h2>
+      <p class="caption">Click any store to open it in 3D.</p>
+      <div class="strip" id="evo-gallery"></div>
+    </section>
+    <section class="panel">
+      <h2 id="evo-pop-title">The latest epoch</h2>
+      <div class="grid-thumbs" id="evo-pop-grid"></div>
+    </section>
+  </main>
+
+  <!-- ===================================================== BRIEF -->
+  <main class="tab" id="tab-brief" hidden>
+    <section class="panel prose">
+      <h2>How it answers the brief</h2>
+      <p>A spatial simulation and an environment-design tool. The environment is a convenience store generated from a short genome; two kinds of agents live in it; the designer edits, compares and evolves the store by how the agents perform. The full semantic model is in <a href="https://github.com/yz5149-stack/spatial_ai_gsapp/blob/main/20261201_final/SEMANTIC_MODEL.md">SEMANTIC_MODEL.md</a>.</p>
+      <table class="req">
+        <thead><tr><th>Requirement</th><th>In the simulation</th></tr></thead>
+        <tbody>
+          <tr><td>Baseline from a semantic model</td><td>Every store is built from a genome: front door, stockroom door, coolers, counter, gondolas (position, length, direction, 54″ or 72″, products, aisle sign), cartons and floor zones.</td></tr>
+          <tr><td>Two notions of location</td><td><b>Metric</b> (x, y in metres, and heights in 3D) · <b>store address</b> (“G3 · west face · bay 2”, “Cooler aisle”, “Register”) · <b>relative to an agent’s own landmarks</b> (“2 m E, 1.5 m N of D1”). Hover over the plan to see all three.</td></tr>
+          <tr><td>Two notions of distance</td><td><b>Walking path</b> (Dijkstra, no corner cutting) · <b>acoustic</b> (straight 3D line + muffling per cell of shelf, cooler, wall; low shelves under the ear line don’t muffle) · <b>effort</b> in seconds (wet floor slows) · straight-line.</td></tr>
+          <tr><td>Two kinds of agents</td><td><b>Survivors</b> (shopping list, flashlight cone, read shelves and signs) and <b>the creature</b> (vision cone, hearing).</td></tr>
+          <tr><td>Limited knowledge, scanning</td><td>Each agent starts with an empty map and fills it from its cone. Rays pass over anything below its eye: standing, you see over a 54″ gondola; crouching, you don’t. Dark floor only shows itself up close.</td></tr>
+          <tr><td>Spatial memory, landmarks</td><td>Survivors: items, aisle signs, dead ends, dark corners, hiding places, where they saw the creature. Creature: dead ends, hiding places, footsteps, catches, and <b>hunting grounds</b> that persist across nights, so it patrols where survivors tend to be.</td></tr>
+          <tr><td>Goals and performance</td><td>Survivors: escape with the list (escaped, items, time, exposure). Creature: catch (catch rate, time to first catch, and its learning across nights).</td></tr>
+          <tr><td>Planning ahead</td><td>Survivors try every order of the items they know the places of, plus the walk out, and take the shortest. When frightened they pick a refuge they reach well before the creature, out of its sight at crouching height. The creature plans a sweep of the hiding places it remembers, and a patrol through its strongest hunting grounds.</td></tr>
+          <tr><td>Environment</td><td>Physical (a real-size store), partially observable, multi-agent (survivors block each other), dynamic (agents move, the sun moves), non-deterministic (seeded randomness: arrivals, lists, slips).</td></tr>
+          <tr><td>Obstacles</td><td>Gondolas, coolers, counter, cartons, walls.</td></tr>
+          <tr><td>Hindrances and affordances</td><td><b>Wet floor</b> (slow, loud slips) · <b>crushed bags</b> (louder steps) · <b>lights out</b> (hard to see, easy to hide) · <b>rubber mats</b> (quiet) · <b>aisle signs</b> (read a whole aisle from 6 m) · <b>daylight</b> through the glass (see farther).</td></tr>
+          <tr><td>Generate environments: manual</td><td><b>Choose</b>: two variations run side by side; keep one and two more grow from it. Plus direct editing on the plan.</td></tr>
+          <tr><td>Generate environments: automated</td><td><b>Evolve</b>: a population scored by the agents’ aggregate performance, mutated over a chosen number of epochs, with a chart of best and mean scores.</td></tr>
+          <tr><td>Real-world data, 3D + time</td><td>The storefront faces south on a street in Morningside Heights. The sun’s real position for the chosen hour is cast through the glazing (sill 0.45 m, head 2.45 m), past the real shelf heights, onto the floor; hourly weather from the Open-Meteo archive (the 2016 blizzard) or live forecast sets how many survivors come, how far sound carries, and whether hand warmers are on every list.</td></tr>
+        </tbody>
+      </table>
+      <h3>Real measurements used</h3>
+      <p>Gondolas 54″ (1.37 m) and 72″ (1.83 m); reach-in coolers 2.03 m; counter 40″ (1.02 m); aisles at least 0.9 m (36″); grid cells 0.5 m; the store 18 × 13 m (about 2,500 sq ft). Eye heights 1.6 m standing, 0.95 m crouching.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Ryan Fu · Lu Liu · Yifan Zhao — Spatial AI, Columbia GSAPP, fall 2026. An original simulation. Built with three.js 0.160.0; weather from <a href="https://open-meteo.com/">Open-Meteo</a>.</p>
+  </footer>
+  <script type="module" src="src/ui/main.js?v=20261201a"></script>
+</body>
+</html>
