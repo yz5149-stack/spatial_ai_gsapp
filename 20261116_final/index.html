@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frostroot: Whiteout</title>
+  <meta name="description" content="A spatial simulation of survival in real New York places through the real January 2016 blizzard: a creature that maps and hunts, survivors who must stay warm, and an environment designer that evolves the emergency response.">
+  <link rel="stylesheet" href="style.css?v=20261116a">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Spatial AI &middot; Columbia GSAPP &middot; Final project</p>
+      <h1>Frostroot<span>:</span> Whiteout</h1>
+    </div>
+    <p class="lede">Real New York streets, real building heights, the real hourly record of the January 2016 blizzard.
+      Survivors must reach shelter before they freeze; a creature of roots maps the neighbourhood and hunts them by sound.
+      You design the emergency response, and let it evolve.</p>
+  </header>
+
+  <main>
+    <section class="panel setup" aria-label="Place and night">
+      <div class="setup-row">
+        <label class="field"><span>Place</span><select id="sel-place"></select></label>
+        <label class="field"><span>Night</span><select id="sel-night">
+          <option value="2016-01-23T17:00">23 Jan 2016, 17:00: the height of the blizzard</option>
+          <option value="2016-01-22T21:00">22 Jan 2016, 21:00: the first snow</option>
+          <option value="2016-01-23T23:00">23 Jan 2016, 23:00: after the snow, the deep cold</option>
+          <option value="live">Tonight: live weather (Open-Meteo)</option>
+        </select></label>
+        <label class="field small-field"><span>Survivors</span><select id="sel-count"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+        <p class="place-blurb" id="place-blurb"></p>
+      </div>
+      <div class="weather" id="weather"></div>
+    </section>
+
+    <section class="stage" aria-label="Simulation">
+      <div class="viewer" id="viewer">
+        <div class="scene" id="scene"></div>
+        <div class="vignette" id="vignette"></div>
+        <div class="hud hud-tl hud-box">
+          <div class="phase" id="phase">Phase 1 · Mapping</div>
+          <div class="phase-sub" id="phase-sub"></div>
+          <div class="cov"><b id="cov-bar"></b></div>
+        </div>
+        <div class="hud hud-tr hud-box" id="hud-weather"></div>
+        <div class="toast hide" id="toast"></div>
+        <div class="screen" id="screen-start">
+          <div class="card">
+            <h2>Frostroot: Whiteout</h2>
+            <p id="start-place">Loading the place…</p>
+            <div class="howto">
+              <div><b>Phase 1</b><span>The creature wakes knowing nothing and maps the real streets with its red vision cone. It names street corners, dead ends, warm places and the refuge.</span></div>
+              <div><b>Phase 2</b><span>The storm night, hour by hour from the 2016 record. Survivors must reach the refuge before the cold gets them, keeping warm, rested and lit. The creature hunts by sound.</span></div>
+              <div><b>You</b><span>Below, design the response (warming centres, supply caches, plowed streets, barricades), compare variations side by side, or let them evolve.</span></div>
+            </div>
+            <p><button type="button" class="btn btn-primary" id="btn-start" disabled>Start</button></p>
+            <p class="small">Space: pause &middot; V: change the view &middot; T: the real city / its knowledge</p>
+          </div>
+        </div>
+        <div class="viewer-fallback" id="viewer-fallback" hidden>The 3D view could not start (three.js did not load). The maps still work.</div>
+      </div>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Speed">
+          <button type="button" data-speed="1" class="on">1&times;</button>
+          <button type="button" data-speed="2">2&times;</button>
+          <button type="button" data-speed="4">4&times;</button>
+          <button type="button" data-speed="8">8&times;</button>
+        </div>
+        <button type="button" class="btn" id="btn-pause">Pause</button>
+        <button type="button" class="btn" id="btn-skip">Skip mapping</button>
+        <button type="button" class="btn" id="btn-ff">+10 nights</button>
+        <div class="seg" role="group" aria-label="Camera">
+          <button type="button" data-view="follow" class="on">Creature</button>
+          <button type="button" data-view="survivor">Survivor</button>
+          <button type="button" data-view="top">Whole place</button>
+        </div>
+        <button type="button" class="btn" id="btn-truth">Show the real city</button>
+        <button type="button" class="btn" id="btn-sound">Sound: on</button>
+        <span class="map-seed" id="map-seed"></span>
+      </div>
+    </section>
+
+    <section class="maps">
+      <div class="panel map-panel">
+        <div class="panel-head"><h2>The creature&rsquo;s map</h2><span class="hint">click to place a survivor</span></div>
+        <canvas id="plan-creature" class="plan"></canvas>
+        <div class="legend">
+          <span><i class="sw" style="--c:#05070a;outline:1px solid #333"></i>never seen</span>
+          <span><i class="sw" style="--c:#a3acb6"></i>street</span>
+          <span><i class="sw" style="--c:#7c8794"></i>plowed</span>
+          <span><i class="sw" style="--c:#dce3ea"></i>lawn</span>
+          <span><i class="sw" style="--c:#56606e"></i>building (lighter = taller)</span>
+          <span><i class="sw" style="--c:#1f3a2a"></i>tree</span>
+          <span><i class="sw" style="--c:#ff8a3a"></i>warming centre</span>
+          <span><i class="sw" style="--c:#7fd1ff"></i>batteries</span>
+          <span><i class="sw" style="--c:#ff8a3a;border-radius:0"></i>hand warmers</span>
+          <span><i class="sw" style="--c:#9dff7a"></i>food</span>
+          <span><i class="sw" style="--c:#7dff9a"></i>refuge</span>
+          <span><i class="sw dash" style="--c:#ff8a7a"></i>planned route</span>
+        </div>
+        <div class="overlays">
+          <label><input type="checkbox" id="ov-paths"> Every survivor&rsquo;s path (green refuge, red caught, blue froze, amber dawn)</label>
+          <label><input type="checkbox" id="ov-heat"> Where survivors were heard</label>
+        </div>
+      </div>
+      <div class="side">
+        <div class="panel map-panel">
+          <div class="panel-head"><h2>A survivor&rsquo;s map</h2><div class="seg seg-sm" id="surv-tabs"></div></div>
+          <canvas id="plan-survivor" class="plan"></canvas>
+        </div>
+        <div class="panel">
+          <h2>Where they are</h2>
+          <p class="caption">One position, several frames of reference, and four ways to measure the distance between hunter and hunted.</p>
+          <div class="frames" id="frames"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cards">
+      <div class="panel agent creature">
+        <div class="agent-head"><span class="dot"></span>The creature <span class="mode" id="c-mode"></span></div>
+        <dl><dt>Goal</dt><dd id="c-goal"></dd><dt>Measured by</dt><dd id="c-crit"></dd></dl>
+        <div class="stats" id="c-stats"></div>
+        <div class="tags"><span class="tag" id="c-hears">Hears footsteps</span><span class="tag" id="c-sees">Sees a survivor</span></div>
+      </div>
+      <div class="panel survivors-panel">
+        <h2>The survivors</h2>
+        <p class="caption">Goal: reach the refuge. Measured by: getting there at all, how fast, and how warm. Each keeps three needs up.</p>
+        <div id="s-list" class="s-list"></div>
+      </div>
+      <div class="panel">
+        <h2>The nights</h2>
+        <div class="tally" id="tally"></div>
+        <h2 class="mt">The creature&rsquo;s landmarks</h2>
+        <p class="caption">Each is remembered relative to one it made before, in metres.</p>
+        <ul class="lm-list" id="lm-list"></ul>
+      </div>
+      <div class="panel">
+        <h2>Log</h2>
+        <ol class="log" id="log"></ol>
+      </div>
+    </section>
+
+    <section class="panel designer" id="designer" aria-label="Environment designer">
+      <div class="panel-head"><h2>Environment designer</h2><span class="hint">You are the city&rsquo;s emergency planner for one night</span></div>
+      <p class="caption">The place and the storm are real and fixed. What you design is the response laid on top of it, within a budget of <b id="budget-total"></b> points:
+        warming centres (3), supply caches (1), plowed streets (2), barricades (1). The lair is where the creature starts.</p>
+      <div class="design-grid">
+        <div>
+          <canvas id="design-canvas" class="plan"></canvas>
+          <div class="tools" id="tools">
+            <span class="tools-label">Click the map to</span>
+            <div class="seg seg-sm" role="group" aria-label="Tool">
+              <button type="button" data-tool="warming" class="on">warming centre</button>
+              <button type="button" data-tool="battery">batteries</button>
+              <button type="button" data-tool="warmers">hand warmers</button>
+              <button type="button" data-tool="food">food</button>
+              <button type="button" data-tool="barricade">barricade</button>
+              <button type="button" data-tool="lair">move lair</button>
+              <button type="button" data-tool="erase">remove</button>
+            </div>
+            <label class="field inline"><span>Plow</span><select id="sel-plow"></select></label>
+          </div>
+        </div>
+        <div class="design-side">
+          <div class="budget"><div class="budget-bar"><b id="budget-bar"></b></div><span id="budget-text"></span></div>
+          <p class="design-desc" id="design-desc"></p>
+          <div class="btn-row">
+            <button type="button" class="btn btn-accent" id="btn-play-design">Play this design above</button>
+            <button type="button" class="btn" id="btn-eval">Evaluate (8 nights)</button>
+            <button type="button" class="btn" id="btn-random">Random design</button>
+          </div>
+          <div class="metrics" id="design-metrics"></div>
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-save">Save to gallery</button>
+            <button type="button" class="btn" id="btn-export">Download JSON</button>
+            <label class="btn file-btn">Load JSON<input type="file" id="file-import" accept="application/json" hidden></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" class="tab on" data-tab="manual">Choose your own adventure</button>
+        <button type="button" role="tab" class="tab" data-tab="auto">Automated evolution</button>
+        <button type="button" role="tab" class="tab" data-tab="gallery">Gallery</button>
+      </div>
+
+      <div class="tab-pane" id="pane-manual">
+        <p class="caption">Two variations of the current design are played side by side for the same nights, with the same survivors waking in the same places. Choose one: it becomes the current design, and two new variations are made from it.</p>
+        <div class="btn-row"><button type="button" class="btn btn-accent" id="btn-ab">Make two variations</button>
+          <label class="field inline"><span>Nights each</span><select id="ab-rounds"><option>4</option><option selected>6</option><option>10</option></select></label>
+          <label class="field inline"><span>Change</span><select id="ab-strength"><option value="0.6">small</option><option value="1" selected>medium</option><option value="1.8">large</option></select></label></div>
+        <div class="ab" id="ab">
+          <div class="ab-card" id="ab-a"><div class="ab-head"><b>A</b><span class="ab-desc"></span></div><canvas class="plan"></canvas><div class="metrics"></div><button type="button" class="btn btn-accent ab-pick" disabled>Choose A</button></div>
+          <div class="ab-card" id="ab-b"><div class="ab-head"><b>B</b><span class="ab-desc"></span></div><canvas class="plan"></canvas><div class="metrics"></div><button type="button" class="btn btn-accent ab-pick" disabled>Choose B</button></div>
+        </div>
+        <h3 class="mt">Lineage</h3>
+        <ol class="lineage" id="lineage"></ol>
+      </div>
+
+      <div class="tab-pane" id="pane-auto" hidden>
+        <p class="caption">Each epoch makes several variations of the best design so far, plays each for some nights, and keeps the best by the aggregate performance of the agents. The number of environments generated and evaluated is epochs &times; variations.</p>
+        <div class="btn-row">
+          <label class="field inline"><span>Epochs</span><input type="number" id="evo-epochs" value="8" min="1" max="60"></label>
+          <label class="field inline"><span>Variations per epoch</span><input type="number" id="evo-pop" value="4" min="1" max="12"></label>
+          <label class="field inline"><span>Nights each</span><input type="number" id="evo-rounds" value="4" min="1" max="20"></label>
+          <label class="field inline"><span>Objective</span><select id="evo-objective"><option value="survivors">help the survivors</option><option value="creature">help the creature</option></select></label>
+          <button type="button" class="btn btn-accent" id="btn-evolve">Run</button>
+          <button type="button" class="btn" id="btn-evolve-stop" disabled>Stop</button>
+        </div>
+        <div class="evo">
+          <div><svg id="evo-chart" class="evo-chart" viewBox="0 0 600 260" role="img" aria-label="Score by epoch"></svg><p class="caption" id="evo-status"></p></div>
+          <div><canvas id="evo-best" class="plan"></canvas><div class="metrics" id="evo-metrics"></div>
+            <div class="btn-row"><button type="button" class="btn btn-accent" id="btn-use-best" disabled>Make it the current design</button></div></div>
+        </div>
+        <div class="evo-strip" id="evo-strip"></div>
+      </div>
+
+      <div class="tab-pane" id="pane-gallery" hidden>
+        <p class="caption">Designs you saved, with why they are interesting. Saved in this browser; download the JSON to keep them.</p>
+        <div class="gallery" id="gallery"></div>
+      </div>
+    </section>
+
+    <section class="panel how" aria-label="How it answers the brief">
+      <h2>How it answers the brief</h2>
+      <div class="how-grid" id="how-grid">
+        <div><h3>Semantic model</h3><p>A creature, survivors, a refuge, warm places, caches, streets, buildings, terrain and a storm, with their relations: see <a href="https://github.com/yz5149-stack/spatial_ai_gsapp/blob/main/20261116_final/semantic-model.md">semantic-model.md</a>.</p></div>
+        <div><h3>Two notions of location</h3><p>Every position is held in several frames: the grid cell, metres east and south of the map's corner, longitude and latitude (WGS84), and the street ("Amsterdam Av, near W 113th St"). Landmarks are stored relative to the previous landmark, in metres.</p></div>
+        <div><h3>Two notions of distance</h3><p>Euclidean (metres, also in 3D with the terrain), walking distance on the agent's own map, acoustic distance (straight line + muffling by buildings and trees, carried downwind), and effort/cold: the route cost the survivors plan with (snow depth, wind exposure).</p></div>
+        <div><h3>Two kinds of agents</h3><p>The creature (explore, then hunt by sound) and the survivors (several at once, each with warmth, stamina and battery). Both see only a cone, blocked by buildings, trees and the rising ground; both build their own map and landmarks.</p></div>
+        <div><h3>Memory, goals, performance, planning</h3><p>The creature patrols the landmarks where it has heard or caught survivors before. Survivors remember warm places and caches, and before setting out for the refuge they estimate the heat they will lose on the way; if it is too much, they warm up first.</p></div>
+        <div><h3>The environment</h3><p>Physical, partially observable, multi-agent (survivors never share a cell), dynamic (the weather and the snow change every hour) and non-deterministic (where survivors wake, how they search).</p></div>
+        <div><h3>Obstacles, hindrances, affordances</h3><p>Obstacles: buildings, trees, fences, water, barricades. Hindrances: deep snow, wind exposure, slopes and steps, street light (you are seen). Affordances: warming centres, subway air, shop doorways, caches, plowed streets, the lee of buildings.</p></div>
+        <div><h3>Real data, 3D + time</h3><p>OpenStreetMap streets and parks; NYC building footprints with surveyed roof heights and ground elevations; Open-Meteo hourly temperature, wind, gusts, snowfall and snow depth for the storm; a DEM for the parks. Or tonight's live weather.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-foot">
+    <p>Ryan Fu &middot; Lu Liu &middot; Yifan Zhao</p>
+    <p>Spatial AI, Columbia GSAPP, fall 2026. An original simulation; built with three.js 0.160.0.
+      Map data &copy; OpenStreetMap contributors (ODbL). Buildings: NYC Open Data, Building Footprints. Weather and elevation: Open-Meteo (ERA5, Copernicus DEM).</p>
+  </footer>
+  <script type="module" src="src/ui/main.js?v=20261116a"></script>
+</body>
+</html>

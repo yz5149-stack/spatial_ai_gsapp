@@ -1,0 +1,1 @@
+{"name":"frostroot-whiteout","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs","balance":"node tests/balance.mjs","fetch-data":"NODE_USE_ENV_PROXY=1 node tools/fetch_data.mjs"}}

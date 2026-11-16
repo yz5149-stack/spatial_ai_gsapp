@@ -1,0 +1,14 @@
+{
+  "morningside/No response": "The baseline: no warming centres, caches or plowing. Only 3% reach Mount Sinai; most are caught, and the survivors who do last till dawn are those who hid. Everything else is measured against this.",
+  "morningside/The starting design": "A random response within budget. Reaching the hospital goes from 3% to 23% just by putting warm places and caches in the survivors' way.",
+  "morningside/Evolved to help the survivors": "After 8 epochs (33 environments) the best design for survivors: a third reach the hospital, and fewer are caught. Compare where the warming centres ended up with the paths (green) that lead to the refuge.",
+  "morningside/Evolved to help the creature": "The same evolution with the opposite objective. On its own 4 evaluation nights it helped the creature, but on these 10 fresh nights it catches fewer and more survivors freeze instead: the cold, not the creature, does the damage. Freezing triples compared with the design for survivors.",
+  "ramble/No response": "In the park there are no doorways or subway air inside the woods: 30% freeze. The Lake and the woods make the open lawns the only fast ways, and they are exposed.",
+  "ramble/The starting design": "Warm places cut freezing from 30% to 20%, but more are caught: survivors gather where the creature learns to patrol.",
+  "ramble/Evolved to help the survivors": "Freezing drops to 10% and the most survivors reach the subway, but catches rise: the trade-off of a warming centre that is lit and that the creature remembers.",
+  "ramble/Evolved to help the creature": "The design that best serves the hunter: 60% caught, 20% frozen, and the fewest reach the subway. Look at where its barricades sit relative to the paths toward Central Park West.",
+  "fidi/No response": "Lower Manhattan's towers break the wind: nobody freezes even without help (wind shelter up to four times a building's height). The danger here is being seen in lit, narrow streets.",
+  "fidi/The starting design": "Adding a response here barely helps and slightly hurts: lit warming centres in narrow streets draw the creature. In a well-sheltered place, the cold is not the problem the response solves.",
+  "fidi/Evolved to help the survivors": "Evolution recovers roughly the baseline: with the cold already handled by the buildings, there is little the budget can buy.",
+  "fidi/Evolved to help the creature": "The surprise: evolved on 4 nights to help the creature, it is the best design for survivors on these 10 fresh nights (50% reach the hospital). A lesson about noisy evaluation: with few nights per design, evolution can overfit to the nights it was scored on."
+}
