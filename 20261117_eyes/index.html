@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eyes on the Street</title>
+  <meta name="description" content="Who can see each street of Morningside Heights, hour by hour: real MTA subway counts, modelled street lights and real 311 outage reports, and walkers who avoid the dark.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="head">
+    <p class="eyebrow">Spatial AI · Columbia GSAPP · prototype after the final project</p>
+    <h1>Eyes on the Street<span>:</span> Morningside Heights</h1>
+    <p class="lede">How many people can see each spot of the neighbourhood, hour by hour? Walkers come from the real hourly counts of the 116 St–Columbia subway station.
+      Street lights shape where they walk at night and how far they can see. Add lights or a late-night shop and compare.
+      <b>This measures natural surveillance (“eyes on the street”), not crime.</b></p>
+  </header>
+
+  <main>
+    <section class="panel controls">
+      <label class="field"><span>Day</span><select id="day">
+        <option value="weekday">Weekday (Mon–Thu)</option><option value="friday">Friday</option><option value="saturday">Saturday</option><option value="sunday">Sunday</option></select></label>
+      <div class="field hour"><span>Hour <b id="hour-label"></b></span>
+        <div class="hour-row"><button type="button" class="btn" id="play">▶</button><input type="range" id="hour" min="0" max="23" value="23"></div></div>
+      <label class="field"><span>Map</span><select id="layer">
+        <option value="eyes">Eyes: people who can see the spot</option>
+        <option value="unwatched">Dark and unwatched</option>
+        <option value="light">Light</option>
+        <option value="people">Walkers</option>
+        <option value="diff">Change from the baseline (eyes)</option></select></label>
+      <label class="field"><span>Street lights reported out to 311</span><select id="outages">
+        <option value="none">All lights working</option>
+        <option value="open">Reports still open</option>
+        <option value="all">Every report of the last year, at once</option></select></label>
+      <label class="check"><input type="checkbox" id="path-lamps" checked> Lamps along campus and park paths <small>(assumed)</small></label>
+      <label class="field"><span>Other walkers per subway rider <b id="others-label"></b></span><input type="range" id="others" min="0" max="4" step="0.25" value="1.5"></label>
+      <label class="field"><span>How much people avoid the dark <b id="avoid-label"></b></span><input type="range" id="avoid" min="0" max="4" step="0.25" value="1.5"></label>
+    </section>
+
+    <section class="grid">
+      <div class="panel map-panel">
+        <div class="panel-head"><h2 id="map-title">Eyes at 23:00</h2>
+          <div class="seg" role="group" aria-label="Tool">
+            <button type="button" data-tool="none" class="on">Look</button>
+            <button type="button" data-tool="lamp">Add a light</button>
+            <button type="button" data-tool="shop">Add a late-night shop</button>
+            <button type="button" data-tool="remove">Remove</button>
+          </div></div>
+        <div class="map-wrap"><canvas id="map"></canvas><div class="tip" id="tip" hidden></div></div>
+        <div class="legend" id="legend"></div>
+        <div class="map-foot"><label class="check"><input type="checkbox" id="show-lamps" checked> street lights</label>
+          <label class="check"><input type="checkbox" id="show-311" checked> 311 reports</label>
+          <span class="design-note" id="design-note"></span>
+          <button type="button" class="btn btn-xs" id="reset">Clear my changes</button></div>
+      </div>
+      <div class="side">
+        <div class="panel"><h2>This hour</h2><div class="cards" id="cards"></div>
+          <p class="caption" id="cards-note"></p></div>
+        <div class="panel"><h2>Through the day</h2><svg id="chart" viewBox="0 0 520 230" role="img" aria-label="Measures by hour"></svg>
+          <div class="chart-legend"><span><i class="ln a"></i>watched area</span><span><i class="ln b"></i>walking time unseen</span><span><i class="ln dash"></i>baseline</span><span><i class="bar"></i>subway riders</span></div></div>
+      </div>
+    </section>
+
+    <section class="grid2">
+      <div class="panel"><h2>Streets, least watched first</h2><p class="caption">Mean eyes on the street's cells this hour, its mean light, and its least watched spot.</p>
+        <table class="streets"><thead><tr><th>Street</th><th>eyes</th><th>least</th><th>light</th></tr></thead><tbody id="streets"></tbody></table></div>
+      <div class="panel how">
+        <h2>How it works</h2>
+        <ol>
+          <li><b>The place</b> is the final project's 8 m grid of Morningside Heights: OpenStreetMap streets and paths, NYC building footprints with surveyed heights, terrain.</li>
+          <li><b>Street lights.</b> New York does not publish where its street lights are. They are modelled: a pole every 30 m along every avenue and street (the city lights all of them), and, if you keep the box ticked, every 45 m along campus and park paths. Each lights fully within 10 m and fades out by 25 m; buildings and trees cast its shadow. <b>Outages are real:</b> 311 reports of street lights out inside the map switch off the nearest pole (the three nearest for “multiple lights out”).</li>
+          <li><b>Walkers.</b> Every hour, the people leaving the station (MTA origin–destination estimates) walk to buildings, weighted by floor area, or out of the map; the people entering it (MTA hourly ridership) walk from them. Other walkers, a multiple of the riders that you set, walk between buildings, shops and the map's edges. Everyone takes the cheapest route; at night a dark cell costs more, so lighting moves people.</li>
+          <li><b>Eyes</b> on a spot: the expected number of people who can see it at a random moment of the hour. That counts walkers within 30 m in light (10 m in the dark) with a clear line of sight, plus shopkeepers behind their windows while shops are open (assumed 7:00–22:00; a late-night shop you add stays open until 2:00).</li>
+          <li><b>Measures.</b> <i>Watched</i>: at least half a person's eyes on the spot on average. <i>Dark and unwatched</i>: at night, light below 35 % and not watched. <i>Walking time unseen</i>: the share of all walking time spent where nobody else is watching.</li>
+        </ol>
+        <h3>What it is not</h3>
+        <p>It does not predict crime and uses no crime data. Crime has causes that street geometry does not hold, and police data records where police look as much as where crime happens. An optimiser trained on it would send more surveillance to neighbourhoods that are already over-policed. This tool measures one spatial idea, natural surveillance, so that a community board can compare lighting and street designs. The hard numbers are the subway counts and the 311 reports; the rest are stated assumptions you can change.</p>
+      </div>
+    </section>
+  </main>
+  <footer class="foot">
+    <p>Data: MTA Subway Hourly Ridership and Origin-Destination Ridership Estimate (data.ny.gov, October 2025); NYC 311 Service Requests (street light conditions, last 12 months); NYC Building Footprints; © OpenStreetMap contributors.
+      Built on the final project, <a href="../20261116_final/">Frostroot: Whiteout</a>. Ryan Fu · Lu Liu · Yifan Zhao.</p>
+  </footer>
+  <script type="module" src="src/ui.js"></script>
+</body>
+</html>

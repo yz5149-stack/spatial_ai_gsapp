@@ -1,0 +1,1 @@
+{"name":"eyes-on-the-street","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs","fetch-data":"NODE_USE_ENV_PROXY=1 node tools/fetch_eyes.mjs"}}
