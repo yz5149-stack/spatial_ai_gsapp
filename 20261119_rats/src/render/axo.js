@@ -43,6 +43,23 @@ function makeCar(k) {
   return { g, beamMat };
 }
 
+// a cat: ginger or black, sits or walks; drawn along +x
+function makeCat(k) {
+  const g = new THREE.Group();
+  const fur = new THREE.MeshLambertMaterial({ color: [0xd98b3a, 0x2a2626, 0xe8e2d6, 0x8d8580][k % 4] });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), fur); body.scale.set(1.5, 0.75, 0.7); body.position.y = 0.75; edges(body, INK, 40); g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), fur); head.position.set(0.85, 1.15, 0); edges(head, INK, 40); g.add(head);
+  for (const z of [-0.17, 0.17]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.24, 8), fur); ear.position.set(0.85, 1.5, z); g.add(ear); }
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xc8f04a });
+  for (const z of [-0.12, 0.12]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeMat); e.position.set(1.15, 1.2, z); g.add(e); }
+  const tail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(-0.7, 0.8, 0), new THREE.Vector3(-1.1, 1.1, 0.1), new THREE.Vector3(-1.2, 1.6, -0.1)]), 10, 0.07, 6), fur); g.add(tail);
+  const legs = [];
+  for (const [x, z] of [[0.45, 0.2], [0.45, -0.2], [-0.45, 0.2], [-0.45, -0.2]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.5, 0.13), fur); l.position.set(x, 0.25, z); g.add(l); legs.push(l); }
+  const halo = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.3, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7d5bb5, transparent: true, opacity: 0.85, depthWrite: false }));
+  halo.position.y = 0.05; g.add(halo);
+  return { g, body, head, tail, legs };
+}
+
 function makeRat() {
   const g = new THREE.Group();
   const fur = new THREE.MeshLambertMaterial({ color: 0x75645a });
@@ -382,10 +399,27 @@ export function makeAxo(el, city, { onPick = null } = {}) {
 
   // rings: things that happened, and smell around a bag
   const rings = [];
-  const cars = new Map(); const flying = [];
+  const cars = new Map(); const flying = []; const cats = new Map(); const shareLines = [];
+  // car lanes as smooth curves: cell centres averaged over a few cells, so cars do not zig-zag
+  const lanePts = (city.lanes ?? []).map((lane) => {
+    const c = lane.cells.map((i) => cellXZ(i));
+    const sm = c.map((_, j) => { let x = 0; let y = 0; let n = 0; for (let q = Math.max(0, j - 4); q <= Math.min(c.length - 1, j + 4); q++) { x += c[q][0]; y += c[q][1]; n++; } return [x / n, y / n]; });
+    // drive on the right: shift each lane a little to the right of its direction
+    return sm.map((p, j) => { const a = sm[Math.max(0, j - 3)]; const b = sm[Math.min(sm.length - 1, j + 3)]; const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [p[0] - ((b[1] - a[1]) / L) * 1.1, p[1] + ((b[0] - a[0]) / L) * 1.1]; });
+  });
+  const laneAt = (k, p) => { const pts = lanePts[k]; const i = Math.max(0, Math.min(pts.length - 1, p)); const a = Math.floor(i); const b = Math.min(pts.length - 1, a + 1); const f = i - a; return [pts[a][0] + (pts[b][0] - pts[a][0]) * f, pts[a][1] + (pts[b][1] - pts[a][1]) * f]; };
+  function catFor(c) { let m = cats.get(c.id); if (m) return m; m = makeCat(c.id); m.g.scale.setScalar(3.4); world.add(m.g); cats.set(c.id, m); return m; }
+  function shareLine(f) {
+    if (f.cell2 == null) return;
+    const [ax, ay] = cellXZ(f.cell); const [bx, by] = cellXZ(f.cell2);
+    const a = v3(ax, ay, 4); const b = v3(bx, by, 4); const mid = a.clone().lerp(b, 0.5); mid.y += 6;
+    const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(16)), new THREE.LineDashedMaterial({ color: 0xd4a514, dashSize: 1.2, gapSize: 0.8, transparent: true }));
+    line.computeLineDistances(); world.add(line); shareLines.push({ line, t0: performance.now() });
+  }
   function carFor(c) {
     let m = cars.get(c.id); if (m) return m;
-    m = makeCar(c.color); m.g.scale.setScalar(1.8); world.add(m.g); cars.set(c.id, m); return m;
+    m = makeCar(c.color); m.g.scale.setScalar(3); world.add(m.g); cars.set(c.id, m); return m;
   }
   // a rat hit by a car flies off in the car's direction, tumbling, and lands on its back
   function launch(f) {
@@ -398,6 +432,7 @@ export function makeAxo(el, city, { onPick = null } = {}) {
     flying.push({ m, from, to, t0: performance.now(), spin: new THREE.Vector3(6 + Math.random() * 6, Math.random() * 4, 4 + Math.random() * 5) });
     addRing(f.cell, 0xe0242a, 1, 18, 1000, 2, 220);
   }
+  const PIN = { caught: () => '✓ caught', missed: (f) => (f.burrow ? '⌂ burrow found' : '✗ got away'), roadkill: () => '✱ hit by car', cat: () => '✓ cat got one' };
   function updateFlying(now) {
     for (let k = flying.length - 1; k >= 0; k--) {
       const fl = flying[k]; const t = (now - fl.t0) / (window.__flyMs ?? 1300);
@@ -443,8 +478,9 @@ export function makeAxo(el, city, { onPick = null } = {}) {
     const [gx, gy] = cellXZ(f.cell);
     const el = document.createElement('div');
     el.className = `pop ${f.burrow ? 'burrow' : f.kind}`;
-    el.textContent = { spot: 'Spotted!', caught: 'Caught!', missed: f.burrow ? 'Got away — burrow found' : 'Got away', dodge: 'Dodged', bag: 'Trash dropped', roadkill: 'Hit by a car!' }[f.kind] ?? f.kind;
+    el.textContent = { spot: 'Spotted!', caught: 'Caught!', missed: f.burrow ? 'Got away — burrow found' : 'Got away', dodge: 'Dodged', bag: 'Trash dropped', roadkill: 'Hit by a car!', cat: 'A cat got it!', catmiss: 'Escaped the cat' }[f.kind] ?? f.kind;
     if (f.kind === 'roadkill') launch(f);
+    if (f.kind === 'share') { shareLine(f); return; }
     labelsEl.append(el); pops.push({ el, v: v3(gx, gy, 6), t0: performance.now() });
     const color = { spot: 0xd4a514, caught: 0x2f9e62, missed: 0x6b7280, dodge: 0xe0582a }[f.kind];
     if (color) addRing(f.cell, f.burrow ? 0xe0582a : color, 1, 14, 1400);
@@ -473,7 +509,7 @@ export function makeAxo(el, city, { onPick = null } = {}) {
   const worldPos = (gx, gy, lift = 0) => { const v = v3(gx, gy, lift); world.localToWorld(v); return v; };
   let glide = null;
   function glideTo(target, zoom) { glide = { t0: performance.now(), ms: 900, fromT: controls.target.clone(), fromZ: camera.zoom, toT: target, toZ: zoom }; }
-  function focusOn(cell, zoom = overviewZoom() * 6) { const [gx, gy] = cellXZ(cell); glideTo(worldPos(gx, gy), zoom); }
+  function focusOn(cell, zoom = overviewZoom() * 3) { const [gx, gy] = cellXZ(cell); glideTo(worldPos(gx, gy), zoom); }
 
   // clicks
   const ray = new THREE.Raycaster(); const ndc = new THREE.Vector2(); let downAt = null;
@@ -505,7 +541,9 @@ export function makeAxo(el, city, { onPick = null } = {}) {
     paintGround(sim, layer, now);
     for (const elx of labelPool.values()) elx.used = false;
     const t = now / 1000;
-    const night = hourFrac >= 19.5 || hourFrac < 5.5 ? 1 : hourFrac >= 17.5 ? (hourFrac - 17.5) / 2 : hourFrac < 7 ? (7 - hourFrac) / 1.5 : 0;
+    const [rise, set] = sim.cfg.sun ?? [6.8, 19];
+    const hf = hourFrac;
+    const night = hf >= set + 0.5 || hf < rise - 0.5 ? 1 : hf >= set - 1.5 && hf < set + 0.5 ? (hf - (set - 1.5)) / 2 : hf >= rise - 0.5 && hf < rise + 1 ? (rise + 1 - hf) / 1.5 : 0;
     const nn = Math.max(0, Math.min(1, night));
     paintSky(nn);
     hemi.intensity = 1.6 - 0.55 * nn; hemi.color.setRGB(1 - 0.35 * nn, 1 - 0.3 * nn, 1 - 0.05 * nn); hemi.groundColor.setRGB(0.72 - 0.4 * nn, 0.74 - 0.4 * nn, 0.77 - 0.3 * nn);
@@ -590,18 +628,35 @@ export function makeAxo(el, city, { onPick = null } = {}) {
       label(`ins${ins.id}`, v3(gx, gy, 6.5), chasing ? `${ins.name} · chasing` : ins.name, `lab ins${chasing ? ' chase' : ''}${selected === ins ? ' sel' : ''}`);
     }
 
-    // cars
+    // cars, along their smoothed lane
     const liveCars = new Set();
     for (const c of sim.cars ?? []) {
       liveCars.add(c.id);
       const m = carFor(c); m.g.visible = true;
-      const [gx, gy] = along(c, frac); m.g.position.copy(v3(gx, gy, 0));
-      const a = c.moved[0]; const b = c.moved[c.moved.length - 1];
-      if (a !== b) { const [ax, ay] = cellXZ(a); const [bx, by] = cellXZ(b); m.g.rotation.y = -Math.atan2(by - ay, bx - ax); }
+      const from = c.pos - (c.moved.length - 1); const p = from + (c.pos - from) * Math.max(0, Math.min(1, frac));
+      const [gx, gy] = laneAt(c.lane, p); m.g.position.copy(v3(gx, gy, 0));
+      const [ax, ay] = laneAt(c.lane, p - 2); const [bx, by] = laneAt(c.lane, p + 2);
+      if (Math.hypot(bx - ax, by - ay) > 0.01) { const want = -Math.atan2(by - ay, bx - ax); m.g.rotation.y = m.init ? turn(m.g.rotation.y, want) : want; m.init = true; }
       m.beamMat.opacity = 0.32 * nn;
     }
     for (const [id, m] of cars) if (!liveCars.has(id)) { world.remove(m.g); cars.delete(id); }
     updateFlying(now);
+    // cats
+    const liveCats = new Set();
+    for (const c of sim.cats ?? []) {
+      liveCats.add(c.id);
+      const m = catFor(c); const [gx, gy] = along(c, frac);
+      m.g.position.copy(v3(gx, gy, 0)); m.g.rotation.y = turn(m.g.rotation.y, -c.facing);
+      const moving = c.moved && c.moved.length > 1;
+      m.legs.forEach((l, k) => { l.rotation.z = moving ? Math.sin(t * (c.mode === 'pounce' ? 22 : 9) + (k % 2) * Math.PI) * 0.7 : 0; });
+      m.body.position.y = c.mode === 'sit' ? 0.6 : 0.75; m.tail.rotation.x = Math.sin(t * 2 + c.id) * 0.3;
+      if (c.mode === 'pounce') label(`cat${c.id}`, v3(gx, gy, 6), 'Cat · pouncing', 'lab cat');
+    }
+    for (const [id, m] of cats) if (!liveCats.has(id)) { world.remove(m.g); cats.delete(id); }
+    for (let k = shareLines.length - 1; k >= 0; k--) { const sl = shareLines[k]; const u = (now - sl.t0) / 2600; if (u >= 1) { world.remove(sl.line); sl.line.geometry.dispose(); shareLines.splice(k, 1); } else sl.line.material.opacity = 1 - u; }
+    // pins: where something happened tonight stays marked for a while
+    const pinsFx = sim.fx.filter((f) => PIN[f.kind] && sim.t - f.t < 150).slice(-14);
+    for (const f of pinsFx) { const [gx, gy] = cellXZ(f.cell); label(`pin${f.seq}`, v3(gx, gy, 2.5), PIN[f.kind](f), `pin pin-${f.burrow ? 'burrow' : f.kind}`); }
 
     // selected
     selLine.visible = planLine.visible = nose.visible = false;
@@ -643,6 +698,8 @@ export function makeAxo(el, city, { onPick = null } = {}) {
     invalidate: () => {
       for (const m of rats.values()) { world.remove(m.g); world.remove(m.trail); }
       for (const m of cars.values()) world.remove(m.g); cars.clear();
+      for (const m of cats.values()) world.remove(m.g); cats.clear();
+      for (const sl of shareLines) world.remove(sl.line); shareLines.length = 0;
       for (const fl of flying) world.remove(fl.m.g); flying.length = 0;
       rats.clear(); fxSeen = 0; bagsSeen.clear(); lastLayer = null;
       for (const p of pops) p.el.remove(); pops.length = 0;

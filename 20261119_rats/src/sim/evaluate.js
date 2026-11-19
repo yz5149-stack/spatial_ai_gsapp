@@ -3,16 +3,18 @@
 
 import { newSim, runDays, measures, score } from './sim.js';
 import { mutate, cloneDesign, designCost } from './design.js';
+import { seasonConfig } from './config.js';
 
 export const OBJECTIVES = {
   civic: { name: 'Fewer rats', better: 'lower', fn: (m) => score(m) },
   paradise: { name: 'Rat paradise', better: 'higher', fn: (m) => -score(m) },
 };
 
-export function evaluateDesign(city, design, { days = city.config.days, seeds = [1], keepMap = false } = {}) {
+export function evaluateDesign(city, design, { days = city.config.evalDays ?? 7, seeds = [1], keepMap = false, season = 'fall' } = {}) {
+  const config = seasonConfig(city.config, season);
   let map = null;
   const runs = seeds.map((seed, k) => {
-    const sim = newSim(city, design, { seed: city.config.seed + seed * 7919 });
+    const sim = newSim(city, design, { seed: city.config.seed + seed * 7919, config });
     runDays(sim, days);
     if (keepMap && k === 0) map = { activity: sim.activity, burrows: sim.colonies.filter((c) => sim.rats.some((r) => r.alive && r.colony === c.id)).map((c) => c.home), daily: sim.daily };
     return measures(sim);
@@ -22,7 +24,7 @@ export function evaluateDesign(city, design, { days = city.config.days, seeds = 
     rats: avg((r) => r.rats), ratsStart: avg((r) => r.ratsStart), eaten: avg((r) => r.eaten), sightings: avg((r) => r.sightings),
     inspections: avg((r) => r.inspections), failed: avg((r) => r.failed), burrows: avg((r) => r.burrows), births: avg((r) => r.births),
     starved: avg((r) => r.deaths.starve), baited: avg((r) => r.deaths.bait), treated: avg((r) => r.deaths.treat), foodOut: avg((r) => r.foodOut),
-    realMatch: avg((r) => r.realMatch), spotted: avg((r) => r.spotted), caught: avg((r) => r.caught), missed: avg((r) => r.missed),
+    realMatch: avg((r) => r.realMatch), spotted: avg((r) => r.spotted), caught: avg((r) => r.caught), missed: avg((r) => r.missed), shares: avg((r) => r.shares), byCar: avg((r) => r.deaths.car ?? 0), byCat: avg((r) => r.deaths.cat ?? 0),
   };
   m.score = score(m);
   m.cost = designCost(design);

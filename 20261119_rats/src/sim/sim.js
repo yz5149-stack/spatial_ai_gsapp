@@ -48,7 +48,8 @@ export function newSim(city, design, { seed = city.config.seed, config = city.co
     blocked: new Uint8Array(N),        // cells rats will not enter (fresh bait stations, for a while)
     rats: [], colonies: [], inspectors: [], stations: [], complaints: [], events: [],
     daily: [], today: blankDay(0),
-    totals: { eaten: 0, sightings: 0, complaints: 0, inspections: 0, failed: 0, burrowsTreated: 0, spotted: 0, caught: 0, missed: 0, deaths: { bait: 0, starve: 0, treat: 0, caught: 0, car: 0 }, births: 0 },
+    totals: { eaten: 0, sightings: 0, complaints: 0, inspections: 0, failed: 0, burrowsTreated: 0, spotted: 0, caught: 0, missed: 0, deaths: { bait: 0, starve: 0, treat: 0, caught: 0, car: 0, cat: 0 }, births: 0, shares: 0 },
+    cats: [], tells: [],
     cars: [], carRng: makeRng(seed ^ 0xca5), carSeq: 0,
     fx: [], fxSeq: 0,                  // things worth showing: spotted, caught, missed, burrow found
     nextId: 1,
@@ -58,6 +59,7 @@ export function newSim(city, design, { seed = city.config.seed, config = city.co
   makeSources(sim);
   seedColonies(sim);
   makeInspectors(sim);
+  makeCats(sim);
   seedComplaints(sim);
   log(sim, 'world', `${sim.rats.length} rats in ${sim.colonies.length} colonies, placed where the real inspections found rat activity.`);
   return sim;
@@ -67,7 +69,7 @@ function blankDay(day) { return { day, eaten: 0, sightings: 0, inspections: 0, f
 
 export function fx(sim, kind, cell, text, extra = {}) {
   sim.fx.push({ seq: ++sim.fxSeq, kind, cell, text, t: sim.t, ...extra });
-  if (sim.fx.length > 80) sim.fx.shift();
+  if (sim.fx.length > 240) sim.fx.shift();
 }
 
 export function log(sim, who, text, cell = null) {
@@ -104,7 +106,8 @@ function applyDesign(sim) {
   // hourly people, from the real station counts (weekday)
   const prof = city.place.ridership?.weekday ?? Array(24).fill(1);
   const mx = Math.max(...prof);
-  sim.peopleHour = prof.map((v) => v / mx);
+  const pn = cfg.peopleNight ?? 1;
+  sim.peopleHour = prof.map((v, hr) => (v / mx) * (hr >= 17 || hr < 3 ? pn : 1));
 }
 
 // ---- food ------------------------------------------------------------------------------------------
@@ -191,7 +194,8 @@ function seedColonies(sim) {
     homes.push(c);
   }
   for (const home of homes) {
-    const col = { id: sim.colonies.length, home, burrows: [home], surplus: 0, alive: true, treated: 0, name: placeName(city, home), founded: 0 };
+    const col = { id: sim.colonies.length, home, burrows: [home], surplus: 0, alive: true, treated: 0, name: placeName(city, home), founded: 0, known: new Uint8Array(N), food: [], danger: [] };
+    { const hx = home % W; const hy = Math.floor(home / W); for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const x = hx + dx; const y = hy + dy; if (x >= 0 && y >= 0 && x < W && y < city.H) col.known[y * W + x] = 1; } }
     sim.colonies.push(col);
     const n = rng.int(...cfg.rat.startPerColony) + Math.round(city.real.map[home] * 4);
     for (let k = 0; k < n; k++) addRat(sim, col);
@@ -229,6 +233,7 @@ function ratCost(sim, rat, hourPeople) {
     if (city.road[i]) c += R.streetCross;
     if (sim.shedType[i] === 1) c -= R.coverBonus;
     if (!known[i]) c += 0.6;            // unknown ground: a little risk
+    if (sim.catFear) c += sim.catFear[i];  // it smells where cats live
     if (danger.length) {
       const x = i % W; const y = (i - x) / W;
       for (const d of danger) if (Math.abs(d.x - x) <= 3 && Math.abs(d.y - y) <= 3) { c += R.dangerCost; break; }
@@ -247,7 +252,7 @@ function ratStep(sim, rat, m, h) {
     rat.moved = [rat.cell];
     // a person with a flashlight close by: run (home if it is near, else to cover)
     if (rat.mode !== 'flee') {
-      const threat = nearestInspector(sim, rat.cell, R.alert);
+      const threat = nearestInspector(sim, rat.cell, R.alert) ?? nearestCat(sim, rat.cell, 2);
       if (threat) startFlee(sim, rat, threat);
     }
   }
@@ -258,6 +263,7 @@ function ratStep(sim, rat, m, h) {
 
   if (rat.mode === 'home') {
     if (night && rat.fed < R.need && sim.t >= (rat.restUntil ?? 0) && !(h >= R.activeTo - 0.5 && h < 12)) {
+      learnFromColony(sim, rat);
       rat.mode = 'forage'; rat.path = null;
     } else return;
   }
@@ -273,7 +279,7 @@ function ratStep(sim, rat, m, h) {
   if (!rat.path) {
     if (rat.mode === 'return') {
       rat.path = sim.planner.search(rat.cell, { open: (i) => city.walk[i] && !sim.blocked[i], cost: ratCost(sim, rat, sim.peopleHour[Math.floor(h)]), target: rat.home, maxCost: 300 });
-      if (!rat.path) { rat.cell = rat.home; rat.mode = 'home'; return; }
+      if (!rat.path) { rat.cell = rat.home; rat.mode = 'home'; reportHome(sim, rat); return; }
       rat.pi = 0; rat.target = rat.home; rat.targetKind = 'home';
     } else {
       chooseForage(sim, rat, h);
@@ -319,7 +325,7 @@ function ratStep(sim, rat, m, h) {
 function sense(sim, rat) {
   const { W, H } = sim.city;
   const x0 = rat.cell % W; const y0 = (rat.cell - x0) / W;
-  const r = 2;
+  const r = 0;
   for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
     const x = x0 + dx; const y = y0 + dy;
     if (x >= 0 && y >= 0 && x < W && y < H && !rat.known[y * W + x]) { rat.known[y * W + x] = 1; rat.knownCount++; }
@@ -376,7 +382,7 @@ function chooseForage(sim, rat, h) {
 function arrive(sim, rat, m, h) {
   const R = sim.cfg.rat;
   rat.path = null;
-  if (rat.targetKind === 'home') { rat.mode = 'home'; rat.cell = rat.home; return; }
+  if (rat.targetKind === 'home') { rat.mode = 'home'; rat.cell = rat.home; reportHome(sim, rat); return; }
   if (rat.mode === 'flee') { rat.mode = 'hide'; rat.hideLeft = 6; return; }
   const list = sim.sourceAt.get(rat.cell);
   const mem = rat.memFood.find((f) => f.cell === rat.cell);
@@ -412,6 +418,7 @@ function killRat(sim, rat, cause) {
   else if (cause === 'starve') sim.today.deathsStarve++;
   else if (cause === 'caught') sim.today.caught++;
   else if (cause === 'car') sim.today.roadkill = (sim.today.roadkill ?? 0) + 1;
+  else if (cause === 'cat') sim.today.cats = (sim.today.cats ?? 0) + 1;
   else sim.today.deathsTreat++;
 }
 
@@ -464,9 +471,10 @@ function dawn(sim) {
   const alive = sim.rats.filter((r) => r.alive);
   let fedCount = 0;
   for (const r of alive) {
-    if (r.fed >= R.need * 0.66) { r.hungry = 0; fedCount++; sim.colonies[r.colony].surplus += R.litter * Math.min(1.5, r.fed / R.need); } else if (r.fed < R.need / 3) r.hungry++;
+    if (r.fed >= R.need * 0.66) { r.hungry = 0; fedCount++; sim.colonies[r.colony].surplus += R.litter * (sim.design.contra ? 0.35 : 1) * Math.min(1.5, r.fed / R.need); } else if (r.fed < R.need / 3) r.hungry++;
     if (r.hungry >= R.starveNights) killRat(sim, r, 'starve');
     r.fed = 0;
+    if (r.alive && r.mode !== 'home') reportHome(sim, r);
     r.cell = r.home; r.mode = 'home'; r.path = null;
   }
   for (const col of sim.colonies) {
@@ -767,7 +775,7 @@ function treatBurrow(sim, ins, col) {
   ins.mode = 'treat'; ins.busy = 20; ins.path = null;
   const members = sim.rats.filter((r) => r.alive && r.colony === col.id);
   let killed = 0;
-  for (const r of members) if ((r.mode === 'home' || r.cell === col.home) && r.deathAt < 0 && sim.rng.chance(C.treatKill)) { r.deathAt = sim.t + sim.rng.int(1, 2) * DAY; r.poisonedAt = sim.t; r.poisonCause = 'treat'; killed++; }
+  for (const r of members) if ((r.mode === 'home' || r.cell === col.home) && r.deathAt < 0 && sim.rng.chance(sim.design.dryIce ? 0.6 : C.treatKill)) { r.deathAt = sim.t + sim.rng.int(1, 2) * DAY; r.poisonedAt = sim.t; r.poisonCause = 'treat'; killed++; }
   col.treated++; col.treatedAt = sim.t; ins.stats.burrows++; ins.stats.killed += killed; sim.today.treated++; sim.totals.burrowsTreated++;
   log(sim, 'inspector', `${ins.name} found the burrow at ${col.name}: baited and sealed it (${killed} of ${members.length} rats poisoned).`, col.home);
   // the colony digs a new burrow nearby, if there is somewhere to dig
@@ -795,6 +803,8 @@ export function stepSim(sim) {
   for (const ins of sim.inspectors) {
     inspectorStep(sim, ins, m, h);
   }
+  meet(sim);
+  for (const cat of sim.cats) catStep(sim, cat, h);
   traffic(sim, h);
   sim.t += sim.cfg.tickMin; sim.steps++;
   // a new day starts at midnight in the daily record
@@ -829,6 +839,117 @@ function traffic(sim, h) {
   sim.cars = sim.cars.filter((c) => c.pos < city.lanes[c.lane].cells.length - 1 || c.moved.length > 1);
 }
 
+// ---- what rats tell each other ------------------------------------------------------------------------
+// At the burrow, a returning rat leaves what it learned (the ground it saw, food places, where it was
+// chased); a rat setting out takes the colony's best food places with it. Out on the street, two rats
+// that meet smell each other's breath and learn what the other ate and where (rats really do this).
+function reportHome(sim, rat) {
+  const col = sim.colonies[rat.colony]; if (!col?.known) return;
+  const K = col.known; const k = rat.known;
+  for (let i = 0; i < K.length; i++) if (k[i]) K[i] = 1;
+  let news = 0;
+  for (const f of rat.memFood) {
+    const g = col.food.find((x) => x.cell === f.cell);
+    if (g) { g.got = Math.max(g.got, f.got); g.misses = f.misses; g.hour = Math.min(g.hour, f.hour); } else { col.food.push({ ...f }); news++; }
+  }
+  col.food = col.food.filter((f) => f.got / (1 + 2 * f.misses) >= 0.15).sort((a, b) => b.got - a.got).slice(0, 12);
+  for (const d of rat.memDanger) if (d.chased && !col.danger.some((x) => x.cell === d.cell)) col.danger.push({ ...d });
+  col.danger = col.danger.filter((d) => sim.t - d.t < 3 * DAY).slice(-10);
+  if (news) { sim.totals.tells = (sim.totals.tells ?? 0) + 1; sim.tells.push({ cell: col.home, t: sim.t, n: news }); if (sim.tells.length > 40) sim.tells.shift(); }
+}
+function learnFromColony(sim, rat) {
+  const col = sim.colonies[rat.colony]; if (!col?.known) return;
+  const K = col.known; const k = rat.known;
+  for (let i = 0; i < K.length; i++) if (K[i] && !k[i]) { k[i] = 1; rat.knownCount++; }
+  for (const f of col.food.slice(0, 4)) if (!rat.memFood.some((x) => x.cell === f.cell)) rat.memFood.push({ ...f, got: f.got * 0.8, told: true });
+  if (rat.memFood.length > 8) rat.memFood = rat.memFood.sort((a, b) => b.got - a.got).slice(0, 8);
+  for (const d of col.danger) if (!rat.memDanger.some((x) => x.cell === d.cell)) rat.memDanger.push({ ...d });
+  if (rat.memDanger.length > 8) rat.memDanger = rat.memDanger.slice(-8);
+}
+function meet(sim) {
+  const W = sim.W; const at = new Map();
+  for (const r of sim.rats) if (r.alive && r.mode !== 'home' && r.mode !== 'dead' && r.mode !== 'flee') at.set(r.cell, r);
+  if (at.size < 2) return;
+  for (const r of at.values()) {
+    if (sim.t - (r.lastShare ?? -1e9) < 120) continue;
+    const x = r.cell % W; const y = (r.cell - x) / W;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const o = at.get((y + dy) * W + x + dx);
+      if (!o || o === r || o.colony === r.colony || sim.t - (o.lastShare ?? -1e9) < 120) continue;
+      const give = (a, b) => { const f = a.memFood.slice().sort((p, q) => q.got - p.got)[0]; if (!f || b.memFood.some((g) => g.cell === f.cell)) return 0; b.memFood.push({ ...f, got: f.got * 0.7, told: true }); if (b.memFood.length > 8) b.memFood.sort((p, q) => q.got - p.got).pop(); return 1; };
+      const n = give(r, o) + give(o, r);
+      r.lastShare = o.lastShare = sim.t;
+      if (n) { sim.totals.shares++; fx(sim, 'share', r.cell, 'Two rats swap news of food', { cell2: o.cell, a: r.id, b: o.id }); }
+      return;
+    }
+  }
+}
+
+// ---- working cats ------------------------------------------------------------------------------------------
+// Bodegas and delis keep cats. A cat sits by its shop, prowls a few metres at night and pounces on a rat
+// it sees close by. Few adult rats are caught, but rats smell where cats live and keep away.
+function makeCats(sim) {
+  const n = sim.design.cats ?? 0; sim.cats = []; sim.catFear = null;
+  if (!n) return;
+  const { city } = sim; const W = sim.W;
+  const shops = sim.sources.filter((s) => s.kind === 'grocery').concat(sim.sources.filter((s) => s.kind === 'restaurant'));
+  const homes = [];
+  for (const s of shops) {
+    if (homes.length >= n) break;
+    const c = nearestWhere(W, city.H, s.cell, 2, (j) => city.walk[j]);
+    if (c == null || homes.some((h) => cellDist(W, h, c) < 10)) continue;
+    homes.push(c);
+  }
+  sim.catFear = new Float32Array(city.N);
+  homes.forEach((home, k) => {
+    sim.cats.push({ id: k + 1, kind: 'cat', home, cell: home, facing: 0, moved: [home], mode: 'sit', next: 0, prey: null });
+    const hx = home % W; const hy = Math.floor(home / W);
+    for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) {
+      const x = hx + dx; const y = hy + dy; if (x < 0 || y < 0 || x >= W || y >= city.H) continue;
+      const d = Math.hypot(dx, dy); if (d <= 5) sim.catFear[y * W + x] = Math.max(sim.catFear[y * W + x], 2.5 * (1 - d / 6));
+    }
+  });
+}
+function nearestCat(sim, cell, r) {
+  let best = null; let bd = r;
+  for (const c of sim.cats) { const d = cellDist(sim.W, cell, c.cell); if (d <= bd) { bd = d; best = c; } }
+  return best;
+}
+function catStep(sim, cat, h) {
+  const { city } = sim; const W = sim.W; const rng = sim.carRng;
+  cat.moved = [cat.cell];
+  if (!isNight(sim.cfg, h)) { cat.cell = cat.home; cat.mode = 'sit'; return; }
+  // a rat close by and in sight: pounce
+  let prey = null; let pd = 3;
+  for (const r of sim.rats) {
+    if (!r.alive || r.mode === 'home' || r.mode === 'dead') continue;
+    const d = cellDist(W, cat.cell, r.cell);
+    if (d <= pd && clearLine(sim, cat.cell, r.cell)) { pd = d; prey = r; }
+  }
+  if (prey) {
+    cat.mode = 'pounce';
+    const path = sim.planner.search(cat.cell, { open: (i) => city.walk[i], target: prey.cell, maxCost: 12 });
+    if (path) for (let k = 1; k < Math.min(path.length, 4); k++) { const nx = path[k]; cat.facing = Math.atan2(Math.floor(nx / W) - Math.floor(cat.cell / W), (nx % W) - (cat.cell % W)); cat.cell = nx; cat.moved.push(nx); }
+    if (cellDist(W, cat.cell, prey.cell) <= 1 && sim.t - (cat.lastTry ?? -99) > 6) {
+      cat.lastTry = sim.t;
+      if (rng.chance(0.05)) { killRat(sim, prey, 'cat'); fx(sim, 'cat', prey.cell, 'A cat caught a rat', { cat: cat.id }); }
+      else { startFlee(sim, prey, cat); fx(sim, 'catmiss', prey.cell, 'The rat escaped the cat', { cat: cat.id }); }
+    }
+    return;
+  }
+  // otherwise sit, or wander a little around the shop
+  if (sim.t >= cat.next) {
+    cat.next = sim.t + 3 + Math.floor(rng.next() * 10);
+    if (cat.mode === 'sit' || cellDist(W, cat.cell, cat.home) > 4) {
+      const hx = cat.home % W; const hy = Math.floor(cat.home / W);
+      const t = nearestWhere(W, city.H, (hy + Math.round((rng.next() - 0.5) * 8)) * W + hx + Math.round((rng.next() - 0.5) * 8), 2, (j) => city.walk[j]);
+      cat.path = t != null ? sim.planner.search(cat.cell, { open: (i) => city.walk[i], target: t, maxCost: 20 }) : null; cat.pi = 0; cat.mode = 'prowl';
+    } else { cat.mode = 'sit'; cat.path = null; }
+  }
+  if (cat.path) for (let k = 0; k < 1 && cat.pi < cat.path.length - 1; k++) { const nx = cat.path[++cat.pi]; cat.facing = Math.atan2(Math.floor(nx / W) - Math.floor(cat.cell / W), (nx % W) - (cat.cell % W)); cat.cell = nx; cat.moved.push(nx); }
+}
+
 function closeDay(sim) {
   sim.today.rats = sim.rats.filter((r) => r.alive).length;
   sim.daily.push(sim.today);
@@ -850,7 +971,7 @@ export function measures(sim) {
     eaten: Math.round(sim.totals.eaten), sightings: sim.totals.sightings,
     inspections: sim.totals.inspections, failed: sim.totals.failed, burrows: sim.totals.burrowsTreated,
     spotted: sim.totals.spotted, caught: sim.totals.caught, missed: sim.totals.missed,
-    deaths: { ...sim.totals.deaths }, births: sim.totals.births,
+    deaths: { ...sim.totals.deaths }, births: sim.totals.births, shares: sim.totals.shares,
     foodOut: Math.round(sim.daily.reduce((s, d) => s + d.foodOut, 0) + sim.today.foodOut),
     realMatch: corr,
   };

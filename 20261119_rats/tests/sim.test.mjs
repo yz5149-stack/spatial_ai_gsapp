@@ -64,5 +64,5 @@ test('the night patrol spots, chases, and catches or misses rats', () => {
   const m = measures(sim);
   assert.ok(m.spotted > 0, 'spotted some');
   assert.equal(m.caught + m.missed <= m.spotted, true);
-  assert.ok(sim.fx.some((f) => f.kind === 'caught' || f.kind === 'missed'));
+  assert.ok(sim.totals.caught + sim.totals.missed > 0);
 });

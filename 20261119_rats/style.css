@@ -232,3 +232,41 @@ button.big { font-size: 15px; padding: 12px 22px; }
   .wif, .auto-grid, .ab { grid-template-columns: 1fr; }
   .design, .data { padding: 16px; }
 }
+
+/* ---- one page: the street on the left, what the rats know on the right ---- */
+:root { --side: 400px; }
+.page[data-page='watch'] { right: var(--side); }
+.side { position: fixed; top: 56px; right: 0; bottom: 0; width: var(--side); overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #ebe9e3; border-left: 1px solid var(--line); z-index: 4; }
+.side .card { position: static; width: auto; max-height: none; inset: auto; }
+.side .feedcard { display: flex !important; min-height: 160px; flex: 1; }
+.side .score { padding: 10px 14px; }
+.know-head { display: flex; justify-content: space-between; align-items: baseline; }
+.know-head h4 { color: var(--ink); margin: 0; }
+.ratmap { width: 100%; display: block; border-radius: 8px; margin: 8px 0; image-rendering: pixelated; cursor: pointer; background: #26252f; }
+.know-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.know-stats b { display: block; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.know-stats span { font-size: 11px; color: var(--mute); line-height: 1.3; display: block; }
+.know .mlegend { margin-top: 10px; gap: 10px; }
+.headline { left: calc(352px + (100% - 368px) / 2); max-width: calc(100% - 384px); }
+.drawer { left: auto; width: min(1180px, 100%); z-index: 18; background: var(--paper); box-shadow: -20px 0 60px rgba(30, 28, 24, 0.25); }
+.drawer .close { position: absolute; top: 14px; right: 18px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; font-size: 20px; line-height: 1; padding: 0; }
+.pin { position: absolute; transform: translate(-50%, -100%); font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; color: #fff; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+.pin::after { content: ''; position: absolute; left: 50%; bottom: -5px; margin-left: -4px; border: 4px solid transparent; border-top-color: inherit; }
+.pin-caught, .pin-cat { background: var(--green); border-color: var(--green); }
+.pin-missed { background: #6b7280; border-color: #6b7280; }
+.pin-burrow { background: var(--rat); border-color: var(--rat); }
+.pin-roadkill { background: #e0242a; border-color: #e0242a; }
+.lab.cat { background: var(--violet); color: #fff; border-color: var(--violet); }
+.k-cat { background: var(--violet); } .k-share { background: #f2b81f; color: #1d1f22; }
+.lg-know { background: #26252f; }
+.pop.cat { background: var(--violet); } .pop.catmiss { background: #6b7280; }
+@media (max-width: 1250px) and (min-width: 901px) { :root { --side: 340px; } }
+@media (max-width: 900px) {
+  .page[data-page='watch'] { right: 0; bottom: 46vh; }
+  .side { top: auto; height: 46vh; width: 100%; border-left: none; border-top: 1px solid var(--line); }
+  .headline { top: 76px; left: 10px; right: 10px; transform: none; max-width: none; }
+  .drawer { width: 100%; }
+}
+.rules { display: flex; gap: 14px; align-items: center; }
+.rules select { max-width: 250px; }
+@media (max-width: 1250px) { .rules label { font-size: 0; gap: 0; } .rules select { font-size: 13px; max-width: 170px; } }

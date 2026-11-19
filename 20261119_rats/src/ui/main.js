@@ -1,13 +1,14 @@
-// The page: three parts. Watch: the week on 125th Street, drawn as an axonometric, live. 02 Design: the
-// environment designer. 03 Data: the real data behind it.
+// One page. Left: three nights on 125th Street, drawn as an axonometric, live. Right: what the rats know,
+// a map that starts dark and fills in as they explore and tell each other. "What if…?" (the environment
+// designer) and "About the data" open as drawers over it.
 
-import { CONFIG } from '../sim/config.js';
+import { CONFIG, seasonConfig, SEASONS } from '../sim/config.js';
 import { buildCity, describeLocation } from '../sim/city.js';
 import { newSim, stepSim, hourOf, dayOf, minuteOfDay, RAT_MODES, INSPECTOR_MODES, placeName, log, fx, inShift } from '../sim/sim.js';
 import { makeDesign, cloneDesign } from '../sim/design.js';
-import { makePlan, drawMind } from '../render/plan.js';
+import { makePlan, drawMind, makeRatMap } from '../render/plan.js?v=11';
 import { bagIcon } from '../render/icons.js';
-import { makeDesigner } from './designer.js?v=8';
+import { makeDesigner } from './designer.js?v=11';
 
 const $ = (id) => document.getElementById(id);
 const DATA_URL = new URL('../../data/manhattanville.json', import.meta.url).href;
@@ -16,7 +17,7 @@ const state = {
   city: null, sim: null, scenario: 'now', design: makeDesign('now'),
   speed: 'story', paused: false, trails: true, started: false, acc: 0, last: 0,
   layer: 'none', tool: 'select', view: 'auto', slowmo: true, chaseUntil: 0, chaser: null, selected: null,
-  page: 'watch', lastPanel: 0, cloud: null, dplan: null, preview: null,
+  page: 'watch', lastPanel: 0, cloud: null, dplan: null, preview: null, season: 'fall', ratmap: null,
 };
 
 function flash(text) {
@@ -32,15 +33,19 @@ function banner(html, ms = 5000) {
 function designFor(scenario) { return scenario === 'design' ? cloneDesign(state.design) : makeDesign(scenario); }
 function restart(scenario = state.scenario) {
   state.scenario = scenario; $('scenario').value = scenario;
-  state.sim = newSim(state.city, designFor(scenario));
+  state.sim = newSim(state.city, designFor(scenario), { config: seasonConfig(CONFIG, state.season) });
   state.selected = null; feedSeq = -1;
   $('feed').innerHTML = '<li class="empty">The patrol starts at 7 pm.</li>';
   // the first night starts in the evening, just before the rats come out
-  while (minuteOfDay(state.sim) !== 18 * 60 + 20) stepSim(state.sim);
+  const wake = evening(state.sim);
+  while (minuteOfDay(state.sim) < wake) stepSim(state.sim);
   state.cloud?.invalidate();
   drawDesignPlan();
   panels();
 }
+
+// twenty minutes before the rats come out (in winter that is before 5 pm)
+const evening = (sim) => Math.round(sim.cfg.rat.activeFrom * 60) - 20;
 
 function loop(now) {
   const dt = Math.min(250, now - (state.last || now)); state.last = now;
@@ -50,25 +55,27 @@ function loop(now) {
     if (chasing) { state.chaser = chasing; state.chaseUntil = now + 2600; }
     // a rat hit by a car: slow down and look
     const hit = sim.fx.filter((f) => f.kind === 'roadkill' && f.seq > (state.hitSeen ?? 0)).pop();
-    if (hit) { state.hitSeen = hit.seq; state.slowUntil = now + 2600; if (state.view === 'auto' && !chasing) state.cloud?.focusOn(hit.cell); }
+    if (hit) { state.hitSeen = hit.seq; state.slowUntil = now + 2600; }
     // Story: one minute of the night every second or so; chases in slow motion; the day skipped
     let speed = state.speed;
     if (speed === 'story') {
       const h = hourOf(sim);
-      if (h >= 6.6 && h < 18.3) { while (minuteOfDay(sim) !== 18 * 60 + 20 && sim.t < sim.cfg.days * 1440) stepSim(sim); banner('The day passes. Bags go out again tonight.', 2500); }
-      speed = chasing || now < state.chaseUntil || now < (state.slowUntil ?? 0) ? 0.35 : 1.6;
+      const wake = evening(sim);
+      if (h >= sim.cfg.rat.activeTo + 0.1 && h * 60 < wake - 1) { while (minuteOfDay(sim) !== wake && sim.t < sim.cfg.days * 1440) stepSim(sim); banner('The day passes. The rats wait for dark.', 2500); }
+      speed = chasing || now < state.chaseUntil || now < (state.slowUntil ?? 0) ? 0.35 : 2.4;
     } else if (chasing || now < state.chaseUntil || now < (state.slowUntil ?? 0)) speed = Math.min(speed, 0.6);
     state.acc += (dt / 1000) * speed;
     let n = 0;
     while (state.acc >= 1 && n < 900) { stepSim(sim); state.acc -= 1; n++; }
-    if (sim.t >= sim.cfg.days * 1440) { state.paused = true; $('btn-pause').textContent = '▶'; flash('The week is over. Restart, or change the rules.'); }
+    if (sim.t >= sim.cfg.days * 1440) { state.paused = true; $('btn-pause').textContent = '▶'; flash('The three nights are over. Restart, or try another season or rules.'); }
   }
   if (sim && state.page === 'watch' && state.cloud) {
-    const follow = state.view === 'auto' && now < state.chaseUntil && state.chaser ? state.chaser : null;
+    const follow = null;   // the camera stays put: events are marked where they happen
     const frac = state.speed === 'story' || state.speed <= 3 || follow ? state.acc : 1;
     try { state.cloud.frame(sim, { layer: state.layer, selected: state.selected, now, hourFrac: hourOf(sim), frac, follow, trails: state.trails }); } catch (err) { console.error(err); }
   }
   if (sim && now - state.lastPanel > 200) { panels(); state.lastPanel = now; }
+  if (sim && state.ratmap && now - (state.lastMap ?? 0) > 250) { const st = state.ratmap.draw(sim, now); state.lastMap = now; mapStats(st); }
   requestAnimationFrame(loop);
 }
 
@@ -84,6 +91,7 @@ function phaseText(sim) {
   const ratsOut = h >= C.rat.activeFrom || h < C.rat.activeTo;
   if (!ratsOut && h >= 12 && h < d.setOut) return `Evening. Trash bags go out at ${d.setOut > 12 ? d.setOut - 12 : d.setOut} pm.`;
   if (ratsOut && patrol) return 'Night. Rats are foraging; the patrol is out with flashlights.';
+  if (ratsOut && h >= 12) return 'Dark already. The rats are out; the patrol starts at 7 pm.';
   if (ratsOut) return 'Late night. The patrol has gone home; the rats have the street.';
   if (h < 12) return 'Morning. Trucks collect the bags; the rats sleep.';
   return 'Day. The rats sleep in their burrows.';
@@ -92,10 +100,11 @@ function phaseText(sim) {
 // one sentence, top centre: what is happening right now, for someone who has just arrived
 function headline(sim) {
   const city = sim.city; const where = (c) => placeName(city, c);
-  const recent = sim.fx.filter((f) => (f.kind === 'caught' || f.kind === 'missed' || f.kind === 'roadkill') && sim.t - f.t <= 10).pop();
+  const recent = sim.fx.filter((f) => (f.kind === 'caught' || f.kind === 'missed' || f.kind === 'roadkill' || f.kind === 'cat') && sim.t - f.t <= 10).pop();
   const chase = sim.inspectors.find((i) => i.mode === 'chase' && i.chase);
   if (recent && (!chase || recent.t >= sim.t - 2)) {
     const ins = sim.inspectors.find((i) => i.id === recent.who)?.name ?? 'The inspector';
+    if (recent.kind === 'cat') return ['caught', `A bodega cat caught a rat on ${where(recent.cell)}.`];
     if (recent.kind === 'roadkill') return ['chase', `Bang! A car hit a rat crossing ${where(recent.cell)}.`];
     if (recent.kind === 'caught') return ['caught', `Caught! ${ins} got the rat on ${where(recent.cell)}.`];
     return ['', recent.burrow ? `The rat escaped into its burrow, but ${ins} now knows where the burrow is.` : `Missed. The rat got away from ${ins} on ${where(recent.cell)}.`];
@@ -107,6 +116,7 @@ function headline(sim) {
   const ratsOut = h >= C.rat.activeFrom || h < C.rat.activeTo;
   if (!ratsOut && h >= 12) return ['', `Evening on 125th Street. Trash goes out at ${d.setOut > 12 ? d.setOut - 12 : d.setOut} pm, and the rats wait for dark.`];
   if (ratsOut && out && patrol) return ['', `${out} rats are out looking for trash. ${sim.inspectors.filter((i) => i.mode !== 'off').length} inspectors patrol with flashlights (yellow cones).`];
+  if (ratsOut && out && h >= 12) return ['', `Dark early: ${out} rats are already out. The patrol only starts at 7 pm.`];
   if (ratsOut && out) return ['', `${out} rats are out. The patrol has gone home, so the street is theirs until dawn.`];
   if (ratsOut) return ['', patrol ? 'The rats are still in their burrows. The patrol is starting its rounds.' : 'Quiet. The rats are in their burrows.'];
   return ['', 'Morning. Trucks take the bags away and the rats sleep. Press Next night.'];
@@ -134,7 +144,7 @@ function panels() {
   agentCard(sim, state.selected);
 }
 
-const KIND = { spot: ['Spotted', 'k-spot'], caught: ['Caught', 'k-caught'], missed: ['Got away', 'k-missed'], bag: ['Trash', 'k-bag'], roadkill: ['Car', 'k-car'] };
+const KIND = { spot: ['Spotted', 'k-spot'], caught: ['Caught', 'k-caught'], missed: ['Got away', 'k-missed'], bag: ['Trash', 'k-bag'], roadkill: ['Car', 'k-car'], cat: ['Cat', 'k-cat'], share: ['News', 'k-share'] };
 let feedSeq = -1;
 function feed(sim) {
   if (sim.fxSeq === feedSeq) return;
@@ -144,12 +154,18 @@ function feed(sim) {
   $('feed').innerHTML = items.map((f) => {
     const [label, cls] = f.burrow ? ['Burrow', 'k-burrow'] : KIND[f.kind];
     const ins = sim.inspectors.find((i) => i.id === f.who)?.name ?? '';
-    const what = { spot: `${ins} spots a rat`, caught: `${ins} catches it`, missed: f.burrow ? 'Into its burrow — burrow found' : `It gets away from ${ins}`, dodge: 'The rat dodges', bag: 'You dropped a trash bag', roadkill: 'A car hit a rat' }[f.kind];
+    const what = { spot: `${ins} spots a rat`, caught: `${ins} catches it`, missed: f.burrow ? 'Into its burrow — burrow found' : `It gets away from ${ins}`, dodge: 'The rat dodges', bag: 'You dropped a trash bag', roadkill: 'A car hit a rat', cat: 'A cat caught a rat', share: 'Two rats from different burrows swap news of food' }[f.kind];
     const m = (sim.cfg.startHour * 60 + f.t) % 1440;
     return `<li data-cell="${f.cell}"><b class="${cls}">${label}</b><span>${what}<br><small>${placeName(sim.city, f.cell)}</small></span><small>${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}</small></li>`;
   }).join('');
 }
 
+const fmtH = (h) => { const hh = Math.floor(h); const mm = Math.round((h - hh) * 60); return `${hh > 12 ? hh - 12 : hh}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'pm' : 'am'}`; };
+const SEASON_NOTE = {
+  summer: 'Short nights, more people out late, more restaurant trash, more young.',
+  fall: 'Nights of about twelve hours.',
+  winter: 'Long nights, few people out, rats need more food to keep warm and breed little.',
+};
 const metres = (cells) => `${Math.round(cells * CONFIG.cellM)} m`;
 function rel(city, from, to) {
   const dx = (to % city.W) - (from % city.W); const dy = Math.floor(to / city.W) - Math.floor(from / city.W);
@@ -235,6 +251,14 @@ function setView(v) {
   state.cloud?.setView(v);
 }
 
+// ---- what the rats know ----------------------------------------------------------------------------------
+function mapStats(st) {
+  if (!st) return;
+  $('rm-explored').textContent = `${Math.round(st.explored * 100)}%`;
+  $('rm-food').textContent = st.food;
+  $('rm-shares').textContent = st.shares;
+}
+
 // ---- the design page: a plan you can click ------------------------------------------------------
 function drawDesignPlan() {
   if (!state.dplan || state.page !== 'design') return;
@@ -245,7 +269,7 @@ function drawDesignPlan() {
 // ---- pages -------------------------------------------------------------------------------------------
 function showPage(p) {
   state.page = p;
-  document.querySelectorAll('section.page').forEach((s) => { s.hidden = s.dataset.page !== p; });
+  document.querySelectorAll('section.drawer').forEach((s) => { s.hidden = s.dataset.page !== p; });
   document.querySelectorAll('.pages [data-page]').forEach((b) => b.classList.toggle('on', b.dataset.page === p));
   if (p === 'design') drawDesignPlan();
   if (p === 'data') designer.renderData();
@@ -269,6 +293,9 @@ function wire() {
     panels();
   });
   $('scenario').addEventListener('change', (e) => restart(e.target.value));
+  $('season').addEventListener('change', (e) => { state.season = e.target.value; restart(); banner(`${SEASONS[state.season].name}: dark at ${fmtH(state.sim.cfg.sun[1])}. ${SEASON_NOTE[state.season]}`, 6000); });
+  document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => showPage('watch')));
+  $('ratmap').addEventListener('click', (e) => { const c = state.ratmap?.cellAt(e.clientX, e.clientY); if (c >= 0) state.cloud?.focusOn(c); });
   document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
     const v = b.dataset.view;
     if (v === 'follow' && !state.selected) { // (no button for this any more)
@@ -296,11 +323,12 @@ async function boot() {
   const place = await fetch(DATA_URL).then((r) => r.json());
   state.city = buildCity(place, CONFIG);
   state.dplan = makePlan($('dplan'), state.city, 4);
+  state.ratmap = makeRatMap($('ratmap'), state.city);
   designer = makeDesigner({ state, city: state.city, dataUrl: DATA_URL, restart: (s) => { restart(s); drawDesignPlan(); }, flash, $, onChange: () => drawDesignPlan() });
   wire();
   restart('now');
   try {
-    const { makeAxo } = await import('../render/axo.js?v=9');
+    const { makeAxo } = await import('../render/axo.js?v=11');
     state.cloud = makeAxo($('cloud'), state.city, { onPick: (c) => pick(c) });
   } catch (err) {
     console.error(err);

@@ -5,7 +5,8 @@ export const CONFIG = {
   cellM: 6,                 // one grid cell is 6 m by 6 m
   tickMin: 1,               // one tick is one minute
   startHour: 17,            // a run starts at 5 pm on day 0
-  days: 7,                  // a run is a week
+  days: 3,                  // you watch three nights
+  evalDays: 7,              // the designer runs a week for each street it compares
 
   // ---- the street ------------------------------------------------------------------------
   lampEveryM: 32,           // New York lights every street; modelled poles every 32 m along each street
@@ -45,7 +46,7 @@ export const CONFIG = {
     smell: 18,              // cells: how far it smells food along open air (108 m)
     sight: 3,               // cells it sees around it (rats are near-sighted)
     alert: 6,               // cells: it notices a person with a flashlight this close (sees, hears)
-    homeRange: 32,          // cells (about 190 m): it rarely goes farther from its burrow
+    homeRange: 16,          // cells (about 100 m): it rarely goes farther from its burrow
     need: 1,                // food units per night to stay fed
     carry: 1,               // eats where it finds food, up to this per visit
     eatTicks: 4,
@@ -69,11 +70,11 @@ export const CONFIG = {
   // ---- traffic ---------------------------------------------------------------------------
   // cars drive the streets and avenues; a rat on the roadway where a car passes may be hit
   car: {
-    speed: 18,                 // cells a tick (about 6.5 km/h through the grid: slowed so you can watch them)
+    speed: 7,                  // cells a tick (slowed far below real traffic so you can watch them)
     perLaneHour: [0.5, 0.3, 0.2, 0.15, 0.15, 0.3, 0.7, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.9, 0.8, 0.7, 0.6], // traffic by hour, 1 = busiest
     spawn: 0.06,               // chance a lane starts a car each tick, at the busiest hour
     avenueBoost: 2,            // avenues carry about twice the traffic
-    hit: 0.035,                // chance a rat in a car's path is hit
+    hit: 0.02,                 // chance a rat in a car's path is hit
   },
 
   inspector: {
@@ -106,3 +107,18 @@ export const CONFIG = {
   // ---- the environment designer -------------------------------------------------------------
   budget: 60,
 };
+
+// Seasons change when it gets dark, how many people are out, how much there is to eat, how far
+// food smells, how many young are born, and how much a rat needs to stay warm.
+export const SEASONS = {
+  summer: { name: 'Summer', sun: [5.5, 20.5], rat: { activeFrom: 20.6, activeTo: 5.3, litter: 1.6, smell: 1.2, need: 0.9 }, people: 1.4, food: { restaurant: 1.4, tearPerHour: 1.3 } },
+  fall: { name: 'Spring / fall', sun: [6.8, 19.0], rat: {}, people: 1, food: {} },
+  winter: { name: 'Winter', sun: [7.2, 16.8], rat: { activeFrom: 17.2, activeTo: 7.0, litter: 0.4, smell: 0.8, need: 1.3 }, people: 0.7, food: { tearPerHour: 0.8 } },
+};
+export function seasonConfig(base, season = 'fall') {
+  const S = SEASONS[season] ?? SEASONS.fall;
+  const c = { ...base, rat: { ...base.rat }, food: { ...base.food }, season: season in SEASONS ? season : 'fall', sun: S.sun, peopleNight: S.people };
+  for (const [k, v] of Object.entries(S.rat)) c.rat[k] = k === 'activeFrom' || k === 'activeTo' ? v : base.rat[k] * v;
+  for (const [k, v] of Object.entries(S.food)) c.food[k] = base.food[k] * v;
+  return c;
+}

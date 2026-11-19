@@ -53,6 +53,9 @@ export function makeDesigner({ state, city, dataUrl, restart, $, onChange = () =
     { id: 'sheds', title: 'See-through sidewalk sheds', text: 'Swap every old plywood shed for the 2026 see-through design.', apply: (d) => { for (const s of (d.shedSet === '2023' ? city.sheds2023 : city.sheds)) d.sheds[s.id] = 'light'; } },
     { id: 'lights', title: '10 more street lights', text: 'In the darkest spots near the hotspots.', apply: (d) => { d.lights.push(...hot((i) => city.light[i] < 0.2 && !city.road[i], 10, 8)); } },
     { id: 'patrol', title: 'A third inspector', text: 'One more person on the night patrol.', apply: (d) => { d.inspectors = 3; } },
+    { id: 'cats', title: 'Working cats at 8 bodegas', text: 'A predator: cats catch few rats, but rats smell them and keep away.', apply: (d) => { d.cats = 8; } },
+    { id: 'contra', title: 'Birth-control bait', text: 'Like the city\'s 2024 pilot: rats eat it and have far fewer young.', apply: (d) => { d.contra = true; } },
+    { id: 'dryice', title: 'Dry ice in burrows', text: 'When the patrol treats a burrow, it suffocates most rats inside.', apply: (d) => { d.dryIce = true; } },
   ];
   const picked = new Set();
   $('w-changes').innerHTML = CHANGES.map((c) => `<label class="change"><input type="checkbox" data-change="${c.id}"><span><b>${c.title}</b><small>${c.text}</small></span></label>`).join('');
@@ -77,7 +80,7 @@ export function makeDesigner({ state, city, dataUrl, restart, $, onChange = () =
 
   // ---- run a week: bars --------------------------------------------------------------------------
   const baseCache = new Map();
-  const baseline = (preset) => { if (!baseCache.has(preset)) baseCache.set(preset, pool.run(makeDesign(preset), { seeds: [1, 2], keepMap: true })); return baseCache.get(preset); };
+  const baseline = (preset) => { const key = `${preset}|${state.season}`; if (!baseCache.has(key)) baseCache.set(key, pool.run(makeDesign(preset), { seeds: [1, 2], keepMap: true, season: state.season })); return baseCache.get(key); };
   function bars(rows) {
     return rows.map(({ label, a, b, better }) => {
       const max = Math.max(a, b, 1);
@@ -98,7 +101,7 @@ export function makeDesigner({ state, city, dataUrl, restart, $, onChange = () =
   $('w-run').addEventListener('click', async () => {
     $('w-run').disabled = true; $('w-result').innerHTML = '<p class="tiny">Running two simulated weeks of your street and of today\'s rules…</p>';
     try {
-      const [a, b] = await Promise.all([baseline('now'), pool.run(state.design, { seeds: [1, 2], keepMap: true })]);
+      const [a, b] = await Promise.all([baseline('now'), pool.run(state.design, { seeds: [1, 2], keepMap: true, season: state.season })]);
       $('w-result').innerHTML = `<p class="verdict">${verdict(a, b)}</p>${bars([
         { label: 'Rats left after a week', a: a.rats, b: b.rats, better: 'lower' },
         { label: 'Times people saw a rat', a: a.sightings, b: b.sightings, better: 'lower' },
@@ -118,7 +121,7 @@ export function makeDesigner({ state, city, dataUrl, restart, $, onChange = () =
   async function makePair() {
     pair = [mutate(city, state.design, abSeed++ * 97, 1.2), mutate(city, state.design, abSeed++ * 97 + 13, 1.2)];
     for (const [k, id] of [[0, 'var-a'], [1, 'var-b']]) $(id).innerHTML = `<h3>Option ${k ? 'B' : 'A'}</h3><p class="tiny">${describeDesign(city, pair[k])}</p><p class="tiny">Running a week…</p>`;
-    const ms = await Promise.all(pair.map((d) => pool.run(d, { seeds: [1, 2], keepMap: true })));
+    const ms = await Promise.all(pair.map((d) => pool.run(d, { seeds: [1, 2], keepMap: true, season: state.season })));
     ms.forEach((m, k) => {
       const el = $(k ? 'var-b' : 'var-a');
       el.innerHTML = `<h3>Option ${k ? 'B' : 'A'} <span>${fmt(m.rats)} rats left · seen ${fmt(m.sightings)} times</span></h3><p class="tiny">${describeDesign(city, pair[k])}</p>`;
@@ -139,7 +142,7 @@ export function makeDesigner({ state, city, dataUrl, restart, $, onChange = () =
     try {
       const res = await evolve(city, goal === 'paradise' ? makeDesign('now') : state.design, {
         epochs: 6, population: 4, objective: goal, seed: Math.floor(Math.random() * 1e6),
-        evaluate: (d) => pool.run(d, { seeds: [1, 2] }),
+        evaluate: (d) => pool.run(d, { seeds: [1, 2], season: state.season }),
         onEpoch: (rec, best) => {
           hist.push(rec); drawEvolution($('ev-chart'), hist, goal);
           $('ev-best').innerHTML = `<b>Generation ${rec.epoch} of 6</b>: best so far leaves <b>${fmt(best.m.rats)} rats</b> (seen ${fmt(best.m.sightings)} times).<br>${describeDesign(city, best.design)}`;

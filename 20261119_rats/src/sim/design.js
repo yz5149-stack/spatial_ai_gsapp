@@ -11,10 +11,13 @@
 //            guards     tree pits and yards sealed (wire mesh, concrete), by cell
 //            stations   permanent bait stations, by cell
 //            sheds      per shed id: 'old' (dark plywood), 'light' (the 2026 see-through design), 'gone'
+//   others   cats       working cats kept by bodegas and delis (a predator rats smell and avoid)
+//            contra     birth-control bait (as in the city's 2024 pilot): fewer young
+//            dryIce     burrows treated with dry ice / carbon monoxide: more rats die when a burrow is treated
 
 import { makeRng } from './rng.js';
 
-export const COST = { bin: 0.5, light: 2, guard: 0.5, station: 1, shedLight: 3, shedGone: 5, inspector: 8, night: 12 };
+export const COST = { bin: 0.5, light: 2, guard: 0.5, station: 1, shedLight: 3, shedGone: 5, inspector: 8, night: 12, cat: 1, contra: 6, dryIce: 4 };
 export const LIMITS = { bins: 40, lights: 16, guards: 30, stations: 16 };
 
 export const PRESETS = {
@@ -23,13 +26,14 @@ export const PRESETS = {
 };
 
 export function makeDesign(preset = 'now') {
-  return { ...PRESETS[preset], bins: [], lights: [], guards: [], stations: [], sheds: {} };
+  return { ...PRESETS[preset], bins: [], lights: [], guards: [], stations: [], sheds: {}, cats: 0, contra: false, dryIce: false };
 }
 
 export function designCost(d) {
   const shedCost = Object.values(d.sheds ?? {}).reduce((s, v) => s + (v === 'light' ? COST.shedLight : v === 'gone' ? COST.shedGone : 0), 0);
   return d.bins.length * COST.bin + d.lights.length * COST.light + d.guards.length * COST.guard + d.stations.length * COST.station
-    + shedCost + Math.max(0, d.inspectors - 2) * COST.inspector + (d.pickup === 'night' ? COST.night : 0);
+    + shedCost + Math.max(0, d.inspectors - 2) * COST.inspector + (d.pickup === 'night' ? COST.night : 0)
+    + (d.cats ?? 0) * COST.cat + (d.contra ? COST.contra : 0) + (d.dryIce ? COST.dryIce : 0);
 }
 
 export const cloneDesign = (d) => ({ ...d, bins: [...d.bins], lights: [...d.lights], guards: [...d.guards], stations: [...d.stations], sheds: { ...d.sheds } });
@@ -148,5 +152,8 @@ export function describeDesign(city, d) {
   if (light) parts.push(`${light} see-through sheds`);
   if (gone) parts.push(`${gone} sheds removed`);
   parts.push(`${d.inspectors} inspectors`);
+  if (d.cats) parts.push(`${d.cats} bodega cats`);
+  if (d.contra) parts.push('birth-control bait');
+  if (d.dryIce) parts.push('dry ice in burrows');
   return parts.join(' · ');
 }

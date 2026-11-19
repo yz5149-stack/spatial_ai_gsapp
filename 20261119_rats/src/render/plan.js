@@ -208,3 +208,81 @@ export function drawMind(canvas, sim, a) {
   }
   g.fillStyle = '#fff'; g.beginPath(); g.arc(tx(a.cell), ty(a.cell), 2.5, 0, Math.PI * 2); g.fill();
 }
+
+// ---- what the rats know: a map that starts dark and fills in ------------------------------------------
+// Everything a colony has been told by its rats is drawn (it fills in as they come home); the rest stays in the dark. On top: the food
+// places they know (yellow), places they were chased (red ×), burrows, the rats out now, and the news
+// they pass on (a yellow line between two rats, a pulse at a burrow).
+export function makeRatMap(canvas, city) {
+  const { W, H, N } = city; const S2 = 4;
+  canvas.width = W * S2; canvas.height = H * S2;
+  const g = canvas.getContext('2d');
+  const off = document.createElement('canvas'); off.width = W; off.height = H;
+  const oc = off.getContext('2d'); const img = oc.createImageData(W, H);
+  const col = new Uint8Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    let c;
+    if (city.ground[i] === G.BLDG) c = [196, 190, 180];
+    else if (city.ground[i] === G.WATER) c = [190, 212, 228];
+    else if (!city.walk[i]) c = [226, 223, 214];
+    else if (city.road[i]) c = [236, 235, 231];
+    else if (city.surface[i] === S.LAWN || city.surface[i] === S.WOODS || city.surface[i] === S.YARD) c = [212, 226, 200];
+    else c = [248, 247, 243];
+    col.set(c, i * 3);
+  }
+  const union = new Uint8Array(N); const walkTotal = city.walk.reduce((a, v) => a + v, 0);
+  let lastUnion = -1e9; let stats = null;
+  const px = (c) => ((c % W) + 0.5) * S2; const py = (c) => (Math.floor(c / W) + 0.5) * S2;
+  function draw(sim, now) {
+    if (now - lastUnion > 400) {
+      lastUnion = now; union.fill(0);
+      for (const c of sim.colonies) if (c.alive && c.known) for (let i = 0; i < N; i++) if (c.known[i]) union[i] = 1;
+      let known = 0;
+      const d = img.data;
+      for (let i = 0; i < N; i++) {
+        const k = i * 4;
+        if (union[i]) { d[k] = col[i * 3]; d[k + 1] = col[i * 3 + 1]; d[k + 2] = col[i * 3 + 2]; if (city.walk[i]) known++; }
+        else { const n = ((i * 2654435761) >>> 28) & 7; d[k] = 38 + n; d[k + 1] = 37 + n; d[k + 2] = 48 + n; }
+        d[k + 3] = 255;
+      }
+      oc.putImageData(img, 0, 0);
+      const food = new Set();
+      for (const c of sim.colonies) if (c.alive) for (const f of c.food ?? []) food.add(f.cell);
+      const danger = new Set();
+      for (const c of sim.colonies) if (c.alive) for (const x of c.danger ?? []) danger.add(x.cell);
+      stats = { explored: known / walkTotal, food: food.size, foodCells: [...food], danger: [...danger], shares: (sim.totals.shares ?? 0) + (sim.totals.tells ?? 0) };
+    }
+    g.imageSmoothingEnabled = false;
+    g.drawImage(off, 0, 0, canvas.width, canvas.height);
+    // food places they know
+    for (const c of stats.foodCells) { g.fillStyle = '#f2b81f'; g.strokeStyle = '#6b4b00'; g.lineWidth = 1; g.beginPath(); g.arc(px(c), py(c), 4.5, 0, Math.PI * 2); g.fill(); g.stroke(); }
+    // where they were chased
+    g.strokeStyle = '#e0242a'; g.lineWidth = 2.2;
+    for (const c of stats.danger) { const x = px(c); const y = py(c); g.beginPath(); g.moveTo(x - 4, y - 4); g.lineTo(x + 4, y + 4); g.moveTo(x + 4, y - 4); g.lineTo(x - 4, y + 4); g.stroke(); }
+    // burrows
+    for (const c of sim.colonies) if (c.alive) { g.fillStyle = '#5a2a1a'; g.strokeStyle = '#ff7a3c'; g.lineWidth = 2; g.beginPath(); g.arc(px(c.home), py(c.home), 6, 0, Math.PI * 2); g.fill(); g.stroke(); }
+    // rats out now
+    for (const r of sim.rats) if (r.alive && r.mode !== 'home') { g.fillStyle = r.mode === 'flee' ? '#ff3d3d' : '#ff7a3c'; g.beginPath(); g.arc(px(r.cell), py(r.cell), 3.2, 0, Math.PI * 2); g.fill(); }
+    // news passed on, fading over the last minutes
+    for (const f of sim.fx) {
+      const age = sim.t - f.t; if (age > 25) continue;
+      const a = 1 - age / 25;
+      if (f.kind === 'share' && f.cell2 != null) {
+        g.strokeStyle = `rgba(242,184,31,${a})`; g.lineWidth = 3; g.setLineDash([5, 4]);
+        g.beginPath(); g.moveTo(px(f.cell), py(f.cell)); g.quadraticCurveTo((px(f.cell) + px(f.cell2)) / 2, Math.min(py(f.cell), py(f.cell2)) - 18, px(f.cell2), py(f.cell2)); g.stroke(); g.setLineDash([]);
+      }
+    }
+    for (const f of sim.tells ?? []) {
+      const age = sim.t - f.t; if (age > 12) continue;
+      const a = 1 - age / 12;
+      g.strokeStyle = `rgba(242,184,31,${a})`; g.lineWidth = 2.5; g.beginPath(); g.arc(px(f.cell), py(f.cell), 8 + 18 * (1 - a), 0, Math.PI * 2); g.stroke();
+    }
+    return stats;
+  }
+  function cellAt(clientX, clientY) {
+    const r = canvas.getBoundingClientRect();
+    const x = Math.floor(((clientX - r.left) / r.width) * W); const y = Math.floor(((clientY - r.top) / r.height) * H);
+    return x < 0 || y < 0 || x >= W || y >= H ? -1 : y * W + x;
+  }
+  return { draw, cellAt };
+}
