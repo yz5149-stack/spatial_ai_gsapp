@@ -8,7 +8,7 @@ import { newSim, stepSim, hourOf, dayOf, minuteOfDay, RAT_MODES, INSPECTOR_MODES
 import { makeDesign, cloneDesign } from '../sim/design.js?v=13';
 import { makePlan, drawMind, makeRatMap } from '../render/plan.js?v=13';
 import { bagIcon } from '../render/icons.js?v=13';
-import { makeDesigner } from './designer.js?v=13';
+import { makeDesigner } from './designer.js?v=15';
 
 const $ = (id) => document.getElementById(id);
 const DATA_URL = new URL('../../data/manhattanville.json', import.meta.url).href;
@@ -294,6 +294,10 @@ function wire() {
   });
   $('scenario').addEventListener('change', (e) => restart(e.target.value));
   $('season').addEventListener('change', (e) => { state.season = e.target.value; restart(); banner(`${SEASONS[state.season].name}: dark at ${fmtH(state.sim.cfg.sun[1])}. ${SEASON_NOTE[state.season]}`, 6000); });
+  const setWif = (open) => { document.body.classList.toggle('wif-closed', !open); try { localStorage.setItem('ratcity-wif', open ? '1' : '0'); } catch { /* storage off */ } setTimeout(() => window.dispatchEvent(new Event('resize')), 260); };
+  $('wif-toggle').addEventListener('click', () => setWif(document.body.classList.contains('wif-closed')));
+  { let v = null; try { v = localStorage.getItem('ratcity-wif'); } catch { /* storage off */ } setWif(v ? v === '1' : window.innerWidth > 1100); }
+  $('w-auto').addEventListener('click', () => showPage('design'));
   document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => showPage('watch')));
   $('ratmap').addEventListener('click', (e) => { const c = state.ratmap?.cellAt(e.clientX, e.clientY); if (c >= 0) state.cloud?.focusOn(c); });
   document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
@@ -322,13 +326,13 @@ let designer = null;
 async function boot() {
   const place = await fetch(DATA_URL).then((r) => r.json());
   state.city = buildCity(place, CONFIG);
-  state.dplan = makePlan($('dplan'), state.city, 4);
+  state.dplan = $('dplan') ? makePlan($('dplan'), state.city, 4) : null;
   state.ratmap = makeRatMap($('ratmap'), state.city);
   designer = makeDesigner({ state, city: state.city, dataUrl: DATA_URL, restart: (s) => { restart(s); drawDesignPlan(); }, flash, $, onChange: () => drawDesignPlan() });
   wire();
   restart('now');
   try {
-    const { makeAxo } = await import('../render/axo.js?v=13');
+    const { makeAxo } = await import('../render/axo.js?v=15');
     state.cloud = makeAxo($('cloud'), state.city, { onPick: (c) => pick(c) });
   } catch (err) {
     console.error(err);

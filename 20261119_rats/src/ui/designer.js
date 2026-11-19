@@ -72,7 +72,7 @@ export function makeDesigner({ state, city, dataUrl, restart, $, onChange = () =
     $('w-costbar').style.width = `${Math.min(100, (cost / budget) * 100)}%`;
     $('w-costbar').classList.toggle('over', cost > budget);
     $('w-run').disabled = false;
-    $('w-summary').textContent = picked.size ? `${picked.size} change${picked.size > 1 ? 's' : ''} to ${$('w-base').value === 'y2022' ? 'the 2022 rules' : 'today\'s rules'}. The plan shows where they go.` : 'No changes yet: tick one on the left.';
+    $('w-summary').textContent = picked.size ? `${picked.size} change${picked.size > 1 ? 's' : ''} to ${$('w-base').value === 'y2022' ? 'the 2022 rules' : 'today\'s rules'}.` : 'No changes yet.';
     onChange();
   };
   document.querySelectorAll('[data-change]').forEach((el) => el.addEventListener('change', () => { if (el.checked) picked.add(el.dataset.change); else picked.delete(el.dataset.change); sync(); }));
@@ -99,7 +99,7 @@ export function makeDesigner({ state, city, dataUrl, restart, $, onChange = () =
     return 'Your street ends the week with <b>about as many rats</b> as today\'s rules.';
   }
   $('w-run').addEventListener('click', async () => {
-    $('w-run').disabled = true; $('w-result').innerHTML = '<p class="tiny">Running two simulated weeks of your street and of today\'s rules…</p>';
+    $('w-run').disabled = true; $('w-result').innerHTML = '<p class="tiny">Running a week of your street and of today\'s rules…</p>';
     try {
       const [a, b] = await Promise.all([baseline('now'), pool.run(state.design, { seeds: [1, 2], keepMap: true, season: state.season })]);
       $('w-result').innerHTML = `<p class="verdict">${verdict(a, b)}</p>${bars([
@@ -109,12 +109,12 @@ export function makeDesigner({ state, city, dataUrl, restart, $, onChange = () =
         { label: 'Food the rats ate', a: a.eaten, b: b.eaten, better: 'lower' },
       ])}<div class="maps"><figure></figure><figure></figure></div>`;
       const figs = $('w-result').querySelectorAll('figure');
-      figs[0].append(thumbnail(city, { activity: a.map.activity, burrows: a.map.burrows, design: makeDesign('now') }, { width: 300 })); figs[0].insertAdjacentHTML('beforeend', '<figcaption>Today: where rats ran</figcaption>');
-      figs[1].append(thumbnail(city, { activity: b.map.activity, burrows: b.map.burrows, design: state.design }, { width: 300 })); figs[1].insertAdjacentHTML('beforeend', '<figcaption>Your street: where rats ran</figcaption>');
+      figs[0].append(thumbnail(city, { activity: a.map.activity, burrows: a.map.burrows, design: makeDesign('now') }, { width: 150 })); figs[0].insertAdjacentHTML('beforeend', '<figcaption>Today: where rats ran</figcaption>');
+      figs[1].append(thumbnail(city, { activity: b.map.activity, burrows: b.map.burrows, design: state.design }, { width: 150 })); figs[1].insertAdjacentHTML('beforeend', '<figcaption>Your street: where rats ran</figcaption>');
     } catch (err) { console.error(err); $('w-result').innerHTML = `<p class="tiny">Could not run: ${err.message}</p>`; }
     $('w-run').disabled = false;
   });
-  $('w-watch').addEventListener('click', () => { restart('design'); document.querySelector('.pages [data-page="watch"]')?.click(); });
+  $('w-watch').addEventListener('click', () => { restart('design'); });
 
   // ---- let the computer try: two options (manual) --------------------------------------------------
   let pair = null; let lineage = []; let abSeed = 1;

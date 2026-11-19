@@ -504,7 +504,7 @@ export function makeAxo(el, city, { onPick = null } = {}) {
     renderer.domElement.style.width = `${r.width}px`; renderer.domElement.style.height = `${r.height}px`;
     camera.left = -r.width / 2; camera.right = r.width / 2; camera.top = r.height / 2; camera.bottom = -r.height / 2; camera.updateProjectionMatrix();
   }
-  window.addEventListener('resize', resize); resize();
+  window.addEventListener('resize', resize); if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(el); resize();
   setFrame(new THREE.Vector3(0, 0, 0), overviewZoom());
   const worldPos = (gx, gy, lift = 0) => { const v = v3(gx, gy, lift); world.localToWorld(v); return v; };
   let glide = null;

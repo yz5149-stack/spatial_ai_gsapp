@@ -7,7 +7,7 @@
   <meta name="description" content="Rats and a night rat patrol on 125th Street, Harlem, drawn as an axonometric from NYC survey data, with an environment designer.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=16">
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
   </script>
@@ -17,7 +17,7 @@
     <div class="logo"><b>Rat City</b><span>125th Street &amp; Amsterdam Avenue, Harlem</span></div>
     <div class="pages">
       <button data-page="watch" class="on">Watch</button>
-      <button data-page="design">What if…?</button>
+      <button data-page="design">Let the computer try</button>
       <button data-page="data">About the data</button>
     </div>
     <div class="rules">
@@ -88,6 +88,24 @@
     <div class="fallback" id="cloud-fallback" hidden>The drawing needs WebGL. Open this page in a recent desktop browser.</div>
   </section>
 
+  <!-- LEFT: what if…? (folds away) ----------------------------------------------------------------- -->
+  <aside class="wifbar" id="wifbar">
+    <button class="wif-tab" id="wif-toggle" title="Show or hide"><span class="wif-arrow">‹</span><span class="wif-label">What if…?</span></button>
+    <div class="wif-body">
+      <h3>What if we changed the street?</h3>
+      <p class="tiny">Tick a few changes. Try them on the street tonight, or compare a whole week against today's rules.</p>
+      <label class="base">Start from
+        <select id="w-base"><option value="now" selected>Today's rules (bags at 8 pm, some bins)</option><option value="y2022">The 2022 rules (bags at 4 pm, no bins)</option></select>
+      </label>
+      <div id="w-changes" class="changes"></div>
+      <div class="cost"><span id="w-cost">Cost</span><i><em id="w-costbar"></em></i></div>
+      <p class="tiny" id="w-summary"></p>
+      <div class="row wif-actions"><button id="w-watch" class="primary">Try it on the street</button><button id="w-run">Compare a week</button></div>
+      <div id="w-result"></div>
+      <button class="link" data-page="design" id="w-auto">Let the computer try →</button>
+    </div>
+  </aside>
+
   <!-- RIGHT: what the rats know ------------------------------------------------------------------- -->
   <aside class="side">
     <div class="card score">
@@ -122,35 +140,11 @@
     <div class="design">
       <header class="d-head">
         <p class="kicker">Design the street</p>
-        <h2>What if we changed the street?</h2>
-        <p>Tick a few changes, run a simulated week, and see whether the rats win or lose against today's rules.</p>
+        <h2>Let the computer try</h2>
+        <p>Start from the changes you ticked on the left. The computer searches for better streets, a week of nights at a time.</p>
       </header>
 
-      <div class="wif">
-        <div class="col">
-          <h4><i class="num">1</i>Pick your changes</h4>
-          <label class="base">Start from
-            <select id="w-base"><option value="now" selected>Today's rules (bags at 8 pm, some bins)</option><option value="y2022">The 2022 rules (bags at 4 pm, no bins)</option></select>
-          </label>
-          <div id="w-changes" class="changes"></div>
-          <div class="cost"><span id="w-cost">Cost</span><i><em id="w-costbar"></em></i></div>
-        </div>
-        <div class="col mapcol">
-          <h4><i class="num">2</i>Your street</h4>
-          <canvas id="dplan" class="dplan"></canvas>
-          <div class="mlegend"><span><i style="background:#2c3a52;opacity:.55"></i>trash in bins</span><span><i class="dia" style="background:#2f9e62"></i>sealed soil</span><span><i class="dot" style="background:#e0a100"></i>new light</span><span><i style="background:#7d5bb5"></i>bait station</span><span><i style="background:#3fa7c4"></i>sidewalk shed</span></div>
-          <p class="tiny" id="w-summary"></p>
-          <div class="row"><button id="w-run" class="primary big">Run a week</button><button id="w-watch">Watch it at night</button></div>
-        </div>
-        <div class="col result">
-          <h4><i class="num">3</i>Did it work?</h4>
-          <div id="w-result"><p class="tiny">Press <b>Run a week</b>. Your street and today's rules both live through the same seven nights, and you get the score here.</p></div>
-        </div>
-      </div>
-
       <section class="auto">
-        <h3>Let the computer try</h3>
-        <p class="tiny">Two ways to search for better streets, starting from your changes.</p>
         <div class="auto-grid">
           <div class="auto-card">
             <h4>You choose, it varies</h4>
@@ -222,6 +216,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/ui/main.js?v=13"></script>
+  <script type="module" src="src/ui/main.js?v=15"></script>
 </body>
 </html>

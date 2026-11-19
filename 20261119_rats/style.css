@@ -272,3 +272,36 @@ button.big { font-size: 15px; padding: 12px 22px; }
 @media (max-width: 1250px) { .rules label { font-size: 0; gap: 0; } .rules select { font-size: 13px; max-width: 170px; } }
 @media (max-width: 1250px) and (min-width: 901px) { .headline { left: 16px; transform: none; max-width: 320px; } }
 @media (max-width: 900px) { .headline { left: 10px; transform: none; max-width: none; } }
+
+/* ---- left: "What if…?" sidebar that folds away ---- */
+:root { --left: 340px; }
+body.wif-closed { --left: 44px; }
+.page[data-page='watch'] { left: var(--left); transition: left 0.25s; }
+.wifbar { position: fixed; top: 56px; left: 0; bottom: 0; width: var(--left); z-index: 6; background: #f8f7f3; border-right: 1px solid var(--line); transition: width 0.25s; overflow: hidden; display: flex; }
+.wif-tab { flex: 0 0 auto; order: 2; width: 44px; border: none; border-left: 1px solid var(--line); border-radius: 0; background: #efede7; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; color: var(--ink); }
+.wif-tab:hover { background: #e6e3db; }
+.wif-arrow { font-size: 18px; line-height: 1; transition: transform 0.25s; }
+.wif-label { writing-mode: vertical-rl; transform: rotate(180deg); font-weight: 600; font-size: 13px; letter-spacing: 0.04em; }
+body.wif-closed .wif-arrow { transform: rotate(180deg); }
+.wif-body { flex: 1; min-width: 0; overflow: auto; padding: 16px 14px 24px 16px; }
+body.wif-closed .wif-body { visibility: hidden; }
+.wif-body h3 { margin: 0 0 4px; font-size: 17px; line-height: 1.25; }
+.wif-body .base { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--mute); margin: 12px 0 8px; }
+.wif-body .change { padding: 7px 9px; }
+.wif-body .change b { font-size: 12.5px; } .wif-body .change small { font-size: 11px; }
+.wif-actions { margin: 6px 0 10px; } .wif-actions button { flex: 1; }
+.wif-body .verdict { font-size: 15px; margin: 6px 0 10px; }
+.wif-body .br { grid-template-columns: 74px 1fr 30px; }
+button.link { border: none; background: none; padding: 8px 0; color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 900px) {
+  .page[data-page='watch'] { left: 44px; }
+  .wifbar { z-index: 19; box-shadow: 10px 0 30px rgba(0,0,0,0.15); }
+  body:not(.wif-closed) { --left: min(340px, 90vw); }
+}
+.bar { max-width: calc(100% - 24px); flex-wrap: wrap; justify-content: center; white-space: normal; }
+body.wif-closed .wif-body { display: none; }
+.wifbar .wif-tab { margin-left: auto; }
+.bar { gap: 6px; padding: 6px 8px; }
+.bar button, .bar .chk { font-size: 12.5px; }
+.bar button { padding: 6px 10px; }
+.bar .sep { display: none; }
