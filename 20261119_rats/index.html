@@ -6,7 +6,7 @@
   <title>Rat City</title>
   <meta name="description" content="Rats, inspectors and trash in real Morningside Heights and West Harlem, on Google's photorealistic 3D city, with an environment designer.">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.135.0/Build/Cesium/Widgets/widgets.css">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
   <script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.135.0/Build/Cesium/';</script>
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.135.0/Build/Cesium/Cesium.js" defer></script>
 </head>
@@ -14,7 +14,7 @@
   <header class="top">
     <div class="brand">
       <h1>Rat City</h1>
-      <p>Morningside Heights &amp; West Harlem · Spatial AI, Columbia GSAPP · Ryan Fu, Lu Liu, Yifan Zhao</p>
+      <p>Manhattanville &amp; 125th St · Spatial AI, Columbia GSAPP · Ryan Fu, Lu Liu, Yifan Zhao</p>
     </div>
     <div class="clockbox"><b id="clock">Day 1, 5:00 pm</b><span id="phase">Evening: bags go out at 8 pm</span></div>
     <div class="controls">
@@ -26,8 +26,9 @@
         </select>
       </label>
       <div class="seg" id="speeds">
-        <button data-speed="10">1×</button><button data-speed="60" class="on">6×</button><button data-speed="300">30×</button><button data-speed="1200">120×</button>
+        <button data-speed="3">½×</button><button data-speed="10">1×</button><button data-speed="60" class="on">6×</button><button data-speed="300">30×</button><button data-speed="1200">120×</button>
       </div>
+      <label class="sel check"><input type="checkbox" id="slowmo" checked> Slow down for chases</label>
       <button id="btn-pause">Pause</button>
       <button id="btn-skip" title="Run to the next 7 pm">Next night</button>
       <button id="btn-restart">Restart week</button>
@@ -42,27 +43,32 @@
       </div>
       <div class="stage-bar">
         <div class="seg" id="views">
-          <button data-view="city" class="on">Whole area</button><button data-view="follow">Follow selected</button><button data-view="street">Street level</button>
+          <button data-view="auto" class="on">Watch the chases</button><button data-view="city">Whole area</button><button data-view="follow">Follow selected</button><button data-view="street">Street level</button>
         </div>
         <div class="seg" id="layers">
           <button data-layer="activity" class="on">Rat paths tonight</button><button data-layer="signs">Signs</button><button data-layer="real">Real reports</button><button data-layer="light">Light</button><button data-layer="none">None</button>
         </div>
-        <div class="seg" id="tools">
-          <button data-tool="select" class="on">Select</button><button data-tool="bag">Drop a trash bag</button>
-        </div>
+
       </div>
       <div class="legend" id="legend"></div>
+      <button class="bagbtn" id="btn-bag" title="Drop a trash bag and watch the rats come"><canvas id="bag-ico" width="54" height="61"></canvas><span>Drop a<br>trash bag</span></button>
+      <div class="banner hide" id="banner"></div>
       <div class="toast hide" id="toast"></div>
     </section>
 
     <aside class="side">
       <div class="card numbers">
-        <div><b id="n-rats">0</b><span>rats</span></div>
+        <div><b id="n-rats">0</b><span>rats alive</span></div>
+        <div><b id="n-spot" class="c-spot">0</b><span>spotted by flashlight</span></div>
+        <div><b id="n-caught" class="c-caught">0</b><span>caught</span></div>
+        <div><b id="n-missed" class="c-missed">0</b><span>got away</span></div>
         <div><b id="n-fed">–</b><span>fed last night</span></div>
-        <div><b id="n-births">0</b><span>born</span></div>
-        <div><b id="n-deaths">0</b><span>died</span></div>
         <div><b id="n-sight">0</b><span>seen by people</span></div>
-        <div><b id="n-insp">0</b><span>inspections</span></div>
+      </div>
+
+      <div class="card">
+        <h3>Happening now</h3>
+        <ul id="feed" class="feed"><li class="empty">Rats come out at 6:30 pm, the patrol at 7 pm.</li></ul>
       </div>
 
       <div class="card">
@@ -79,7 +85,7 @@
       </div>
 
       <div class="card">
-        <h3>What happened</h3>
+        <h3>Log</h3>
         <ul id="log" class="log"></ul>
       </div>
     </aside>
@@ -164,13 +170,13 @@
   <div class="start" id="screen-start">
     <div class="start-card">
       <h2>Rat City</h2>
-      <p>Real streets, buildings and trash schedules of Morningside Heights and West Harlem, on Google's 3D city. <b>Rats</b> come out after dark: they smell food along the open air, run along walls, keep out of light and away from people, and remember where they ate. <b>Inspectors</b> come by day: they answer 311 calls, look for droppings and gnawing, follow the trail to the burrow, bait it and seal it.</p>
-      <p>The colonies start where the city's own inspectors found rats in the last three years. You can drop a trash bag and watch them come, compare the rules of 2022 with today's, and design the street yourself.</p>
+      <p>Real streets, buildings and trash schedules of Manhattanville and 125th Street, on Google's 3D city. <b>Rats</b> come out after dark: they smell food along the open air, run along walls, keep out of light and away from people, and remember where they ate and where they were chased. The <b>night patrol</b> walks with flashlights: it answers 311 calls, looks for droppings and gnawing, and when a rat is caught in the beam, gives chase. Caught, or got away? A rat that bolts into its burrow gives the burrow away.</p>
+      <p>The colonies start where the city's own inspectors found rats in the last three years. Drop a trash bag and watch the rats smell it and come; compare the rules of 2022 with today's; design the street yourself.</p>
       <button id="btn-start" class="primary">Start at 5 pm</button>
       <p class="fine">3D tiles: Google, via Cesium ion. Data: NYC Open Data (311, DOHMH rodent and restaurant inspections, DOB shed permits, DSNY baskets, building footprints, elevation), MTA ridership, OpenStreetMap.</p>
     </div>
   </div>
 
-  <script type="module" src="src/ui/main.js?v=2"></script>
+  <script type="module" src="src/ui/main.js?v=3"></script>
 </body>
 </html>

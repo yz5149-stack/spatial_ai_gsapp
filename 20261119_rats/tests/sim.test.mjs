@@ -7,15 +7,15 @@ import { buildCity, describeLocation } from '../src/sim/city.js';
 import { newSim, runDays, stepSim, measures } from '../src/sim/sim.js';
 import { makeDesign, mutate, designCost, isBinned } from '../src/sim/design.js';
 
-const place = JSON.parse(await readFile(new URL('../data/westharlem.json', import.meta.url), 'utf8'));
+const place = JSON.parse(await readFile(new URL('../data/manhattanville.json', import.meta.url), 'utf8'));
 const city = buildCity(place, CONFIG);
 
 test('the city is built from the real data', () => {
   assert.ok(city.W > 150 && city.H > 200);
-  assert.ok(city.nodes.length > 15000, 'walkable ground');
-  assert.ok(city.sources.filter((s) => s.kind === 'restaurant').length > 100, 'restaurants from DOHMH');
-  assert.ok(city.sheds.length > 50, 'sidewalk sheds from DOB permits');
-  assert.ok(city.real.pts.length > 1000, 'real 311 and inspection points');
+  assert.ok(city.nodes.length > 10000, 'walkable ground');
+  assert.ok(city.sources.filter((s) => s.kind === 'restaurant').length > 30, 'restaurants from DOHMH');
+  assert.ok(city.sheds.length > 10, 'sidewalk sheds from DOB permits');
+  assert.ok(city.real.pts.length > 300, 'real 311 and inspection points');
   const loc = describeLocation(city, city.nodes[5000]);
   assert.ok(loc.lonlat[0] < -73.94 && loc.lonlat[1] > 40.8, 'lon/lat frame');
   assert.ok(typeof loc.street === 'string');
@@ -55,4 +55,13 @@ test('inspectors find rat activity and treat burrows', () => {
 test('designs mutate within budget', () => {
   let d = makeDesign('now');
   for (let k = 0; k < 20; k++) { d = mutate(city, d, k + 1, 2); assert.ok(designCost(d) <= CONFIG.budget + 1e-9); }
+});
+
+test('the night patrol spots, chases, and catches or misses rats', () => {
+  const sim = newSim(city, makeDesign('now'));
+  runDays(sim, 2);
+  const m = measures(sim);
+  assert.ok(m.spotted > 0, 'spotted some');
+  assert.equal(m.caught + m.missed <= m.spotted, true);
+  assert.ok(sim.fx.some((f) => f.kind === 'caught' || f.kind === 'missed'));
 });

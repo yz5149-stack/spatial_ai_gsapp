@@ -4,7 +4,7 @@
 
 **Spatial idea.** Rats are the most honest users of a street: they go exactly where its design leaves food, shelter and darkness. A model of rats that only know what they have smelled, seen and remembered turns a neighbourhood into a map of its design failures, and lets us test changes (bins, collection times, lights, sealed tree pits, see-through sidewalk sheds, bait stations, inspectors) before anyone builds them.
 
-**Place.** Morningside Heights and West Harlem, New York: 1.43 km × 1.89 km between W 111th and W 133rd St, from Riverside Drive to Frederick Douglass Boulevard, around Columbia's Morningside and Manhattanville campuses. Rendered on Google Photorealistic 3D Tiles; simulated on a grid of 8 m cells (179 × 236).
+**Place.** Manhattanville and 125th Street, New York: 1.01 km × 1.22 km from Broadway to St Nicholas Park, about W 120th to W 133rd St (Columbia's Manhattanville campus, the General Grant and Manhattanville Houses, the 125th Street shops). Rendered on Google Photorealistic 3D Tiles; simulated on a grid of 6 m cells.
 
 ---
 
@@ -28,14 +28,16 @@
 ### Rat (many; colonies of 3 to 16)
 - **Senses (partial).** *Smell*: food along the open air within 14 cells of walking distance (buildings block it). *Sight*: 2 cells around it. It knows nothing else.
 - **Knowledge.** Its own map: every cell it has been near (starts empty).
-- **Memory (landmarks).** Up to 8 *food places*, each with what it got there, how often it found nothing, and the hour it was first there (so it learns that bags appear at 8 pm); places it was *seen* by people; its *burrow*. Landmarks are reported relative to the burrow ("48 m E, 16 m S of its burrow").
+- **Memory (landmarks).** Up to 8 *food places*, each with what it got there, how often it found nothing, and the hour it was first there (so it learns that bags appear at 8 pm); places it was *chased* (avoided for three days: extra cost within 3 cells); its *burrow*.
+- **Flees.** When a flashlight comes within 6 cells in line of sight it runs at 7 cells a minute: home if the burrow is within 22 cells, otherwise to the best cover within a short dash (old sheds, soil, walls, darkness, away from the person), and hides there. Landmarks are reported relative to the burrow ("48 m E, 16 m S of its burrow").
 - **Goal.** Eat a night's food (1 unit) and get home before light.
 - **Plans ahead.** Each trip: smell first, then the best remembered place for this hour, then unexplored ground inside its home range (200 m). The route is the cheapest path on its own costs: light, people, open ground (it prefers walls), roadways; less under an old shed; a little more on ground it has never seen.
 - **Performance.** Share of the night's need eaten; metres run; times seen; survival (bait, starvation, burrow treatment); young added to the colony.
 
-### Inspector (2 by default; DOHMH)
+### Inspector (2 by default; a night rat patrol, 7 pm to 3 am)
 - **Knowledge.** The public map (streets, sidewalks, paths). Yards, lawns and courtyards are unknown until seen.
-- **Senses (partial).** Sees 5 cells in line of sight; signs under an old shed are half hidden.
+- **Senses (partial).** A flashlight: a 70° beam 9 cells (54 m) long in the direction it faces, plus 2 cells all around; buildings block it. A rat in the beam is spotted with probability 0.8 a minute (×0.6 in the dark part, ×0.5 under an old shed, ×0.35 if it hides). Signs under an old shed are half hidden.
+- **Chase.** It runs after a spotted rat (9 cells a minute against the rat's 7), to where it last saw it when the rat turns a corner (memory); within 1.5 cells it catches it with probability 0.6; after 6 minutes, or when it reaches the last place it saw the rat and the rat is not there, it has missed. A rat that gets into its burrow is missed too, but the inspector now knows the burrow and goes to treat it.
 - **Memory (landmarks).** Failed addresses (*hotspots*), evidence cells; returns for a compliance visit after 10 days; indexes the blocks around hotspots when there are no calls.
 - **Goal.** Answer 311 calls, find active burrows, treat them.
 - **Plans ahead.** Each morning the open complaints and compliance visits are shared out by nearest-next routing; each job is a shortest walk; at a failed address it follows the trail of signs, cell by cell, to the burrow.

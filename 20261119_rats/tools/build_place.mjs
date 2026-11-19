@@ -1,4 +1,4 @@
-// Builds data/westharlem.json, the one file the page loads, from the raw downloads in data/raw/.
+// Builds data/manhattanville.json, the one file the page loads, from the raw downloads in data/raw/.
 //
 //   data/raw/osm.json        OpenStreetMap (Overpass API): streets, paths, parks, buildings, trees,
 //                            lamps, subway entrances, restaurants and shops, litter baskets
@@ -23,7 +23,12 @@ const here = (p) => new URL(p, import.meta.url);
 const read = async (p) => JSON.parse(await readFile(here(p), 'utf8'));
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 
-export const BBOX = { west: -73.9670, east: -73.9500, south: 40.8030, north: 40.8200 };
+// the raw downloads cover W -73.9670, E -73.9500, S 40.8030, N 40.8200; the simulation focuses on
+// Manhattanville and 125th Street: Broadway to St Nicholas Park, about W 120th to W 133rd St
+export const BBOX = { west: -73.9620, east: -73.9500, south: 40.8085, north: 40.8195 };
+const M = 0.0012;   // keep what touches a margin around the box
+const near = (lon, lat) => lon > BBOX.west - M && lon < BBOX.east + M && lat > BBOX.south - M && lat < BBOX.north + M;
+const touches = (pts) => pts.some(([x, y]) => near(x, y));
 
 function inside(poly, x, y) {
   let c = false;
@@ -60,7 +65,7 @@ async function main() {
   const zones = osm.lines.filter((l) => l.kind === 'zone');
 
   // NYC footprints, with their use from the OSM building or the zone (campus, school, housing) they stand in
-  const buildings = nyc.buildings.map((b) => {
+  const buildings = nyc.buildings.filter((b) => touches(b.pts)).map((b) => {
     const [cx, cy] = centroid(b.pts);
     const ob = osmBuildings.find((o) => o.pts.length > 2 && inside(o.pts, cx, cy));
     const zone = zones.find((z) => z.pts.length > 2 && inside(z.pts, cx, cy));
@@ -76,16 +81,16 @@ async function main() {
     };
   });
 
-  const lines = osm.lines.filter((l) => l.kind !== 'zone').map((l) => ({ ...l, pts: l.pts.map(([x, y]) => [r5(x), r5(y)]) }));
+  const lines = osm.lines.filter((l) => l.kind !== 'zone' && touches(l.pts)).map((l) => ({ ...l, pts: l.pts.map(([x, y]) => [r5(x), r5(y)]) }));
   for (const l of lines) { if (l.kind !== 'osmbuilding') { delete l.btype; delete l.amenity; } if (!l.bridge) delete l.bridge; if (!l.sidewalk) delete l.sidewalk; if (!l.name) delete l.name; }
-  const points = osm.points.map((p) => ({ ...p, lon: r5(p.lon), lat: r5(p.lat) }));
+  const points = osm.points.filter((p) => near(p.lon, p.lat)).map((p) => ({ ...p, lon: r5(p.lon), lat: r5(p.lat) }));
 
   // weekday and Saturday people at the station, entries + exits, per hour
   const people = (k) => eyes.entries[k].map((v, h) => Math.round(v + eyes.exits[k][h]));
 
   const out = {
-    id: 'westharlem',
-    name: 'Morningside Heights and West Harlem',
+    id: 'manhattanville',
+    name: 'Manhattanville and 125th Street',
     bbox: BBOX,
     fetched: '2026-11-18',
     sources: {
@@ -100,22 +105,23 @@ async function main() {
       ridership: `${eyes.sources.entries}; ${eyes.sources.exits}`,
     },
     buildings, lines, points,
-    elevation: { pts: elev.pts },
+    elevation: { pts: elev.pts.filter(([x, y]) => near(x, y)) },
     rats: {
-      r311: nyc.r311.map((r) => ({ t: r.t, d: r.d, lon: r5(r.lon), lat: r5(r.lat), lt: r.lt })),
-      inspections: nyc.inspLocs.map((o) => ({ lon: r5(o.lon), lat: r5(o.lat), a: o.a, n: o.n, rat: o.rat, bait: o.bait, last: o.last })),
-      months: nyc.months,
-      restaurants: nyc.restaurants.map((r) => ({ ...r, lon: r5(r.lon), lat: r5(r.lat) })),
-      litter: nyc.litter.map((r) => ({ ty: r.ty, lon: r5(r.lon), lat: r5(r.lat) })),
-      shedsNow: nyc.shedsNow.map((s) => ({ ...s, lon: r5(s.lon), lat: r5(s.lat) })),
-      sheds2023: nyc.sheds2023.map((s) => ({ ...s, lon: r5(s.lon), lat: r5(s.lat) })),
+      r311: nyc.r311.filter((r) => near(r.lon, r.lat)).map((r) => ({ t: r.t, d: r.d, lon: r5(r.lon), lat: r5(r.lat), lt: r.lt })),
+      inspections: nyc.inspLocs.filter((r) => near(r.lon, r.lat)).map((o) => ({ lon: r5(o.lon), lat: r5(o.lat), a: o.a, n: o.n, rat: o.rat, bait: o.bait, last: o.last })),
+      // by month: 311 calls inside this map; inspections from the wider download (Morningside + West Harlem)
+      months: Object.fromEntries(Object.entries(nyc.months).map(([k, v]) => [k, { sight: nyc.r311.filter((r) => near(r.lon, r.lat) && r.t.startsWith(k)).length, ratFailWide: v.ratFail, baitWide: v.bait, inspWide: v.insp }])),
+      restaurants: nyc.restaurants.filter((r) => near(r.lon, r.lat)).map((r) => ({ ...r, lon: r5(r.lon), lat: r5(r.lat) })),
+      litter: nyc.litter.filter((r) => near(r.lon, r.lat)).map((r) => ({ ty: r.ty, lon: r5(r.lon), lat: r5(r.lat) })),
+      shedsNow: nyc.shedsNow.filter((r) => near(r.lon, r.lat)).map((s) => ({ ...s, lon: r5(s.lon), lat: r5(s.lat) })),
+      sheds2023: nyc.sheds2023.filter((r) => near(r.lon, r.lat)).map((s) => ({ ...s, lon: r5(s.lon), lat: r5(s.lat) })),
     },
     ridership: { station: eyes.station.name, month: eyes.month, weekday: people('weekday'), saturday: people('saturday') },
   };
   const s = JSON.stringify(out);
-  await writeFile(here('../data/westharlem.json'), s);
+  await writeFile(here('../data/manhattanville.json'), s);
   const uses = {}; for (const b of buildings) uses[b.use] = (uses[b.use] || 0) + 1;
-  console.log(`data/westharlem.json: ${(s.length / 1e6).toFixed(2)} MB, ${buildings.length} buildings`, uses);
+  console.log(`data/manhattanville.json: ${(s.length / 1e6).toFixed(2)} MB, ${buildings.length} buildings`, uses);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

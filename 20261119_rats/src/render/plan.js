@@ -100,12 +100,16 @@ export function makePlan(canvas, city, scale = 2) {
     // rats
     for (const r of sim.rats) {
       if (!r.alive || r.mode === 'home') continue;
-      g.fillStyle = r.deathAt >= 0 ? 'rgb(197,139,255)' : 'rgb(255,107,61)';
+      g.fillStyle = r.deathAt >= 0 ? 'rgb(197,139,255)' : r.mode === 'flee' ? 'rgb(255,61,61)' : 'rgb(255,107,61)';
       g.fillRect(px(r.cell) - 1.5, py(r.cell) - 1.5, 3, 3);
     }
-    // inspectors
+    // inspectors, with the beam of their flashlight
     for (const ins of sim.inspectors) {
       if (ins.mode === 'off' || ins.mode === 'done') continue;
+      const C = sim.cfg.inspector; const half = (C.beamDeg * Math.PI) / 360;
+      g.fillStyle = ins.mode === 'chase' ? 'rgba(255,211,77,0.45)' : 'rgba(255,243,176,0.22)';
+      g.beginPath(); g.moveTo(px(ins.cell), py(ins.cell));
+      g.arc(px(ins.cell), py(ins.cell), C.beam * s, ins.facing - half, ins.facing + half); g.closePath(); g.fill();
       g.fillStyle = 'rgb(71,184,255)'; g.strokeStyle = '#000';
       g.beginPath(); g.arc(px(ins.cell), py(ins.cell), 3.5, 0, Math.PI * 2); g.fill(); g.stroke();
     }

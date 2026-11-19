@@ -5,7 +5,7 @@
 **Live:** https://yz5149-stack.github.io/spatial_ai_gsapp/20261119_rats/
 **Semantic model:** [semantic-model.md](semantic-model.md)
 
-Rats and inspectors in real Morningside Heights and West Harlem, on Google's photorealistic 3D city. Rats come out after dark: they smell food along the open air, run along walls, keep out of light and away from people, and remember where (and when) they found food. Inspectors come by day: they answer 311 calls, look for droppings and gnawing, follow the trail to the burrow, bait it and seal it. The city sets the table: when bags go out, whether trash is in bins, where lights and sidewalk sheds are.
+Rats and a night rat patrol in real Manhattanville and 125th Street (Broadway to St Nicholas Park, about W 120th to W 133rd St), on Google's photorealistic 3D city. Rats come out after dark: they smell food along the open air, run along walls, keep out of light and away from people, and remember where (and when) they found food and where they were chased. Inspectors walk the night with flashlights: they answer 311 calls, look for droppings and gnawing, follow the trail to the burrow, bait it and seal it; a rat caught in the beam is chased and is either caught or gets away (into its burrow, which gives the burrow away). Chases play in slow motion and the camera follows them. The city sets the table: when bags go out, whether trash is in bins, where lights and sidewalk sheds are.
 
 You are the **environment designer**: change the rules and the street, compare two variations and choose, or let designs evolve over epochs, toward fewer rats or (to learn what not to do) toward a rat paradise.
 
@@ -17,7 +17,7 @@ You are the **environment designer**: change the rules and the street, compare t
 | ≥ 2 notions of **location** | Grid; metres from the corner + elevation; longitude/latitude (and ellipsoid height in 3D); street ("W 125th St, near Amsterdam Av"); each rat's food places relative to its burrow. Shown for the selected agent |
 | ≥ 2 notions of **distance** | Straight line; walking (8 directions); the rat's cost (light, people, open ground, roadways, cover); smell (walking distance through open air); line of sight |
 | ≥ 2 kinds of **spatial agents** | Rats (colonies) and inspectors |
-| Limited knowledge, scanning | Rats smell 14 cells and see 2; inspectors see 5 cells in line of sight; each builds its own map |
+| Limited knowledge, scanning | Rats smell 18 cells (108 m) and see 2–3; they notice a flashlight 6 cells away. Inspectors see along a 70° flashlight beam 9 cells (54 m) long, blocked by buildings, half as well in the dark and under old sheds. Each builds its own map |
 | **Spatial memory** | Rats: food places with the hour they appear, their burrow; inspectors: failed addresses, revisited and used to choose which blocks to index |
 | **Goals** and **performance** | Rat: eat a night's food and get home (share fed, survival, young). Inspector: find and treat burrows (inspections, share failed, burrows treated, km) |
 | **Plan ahead** | Rats: smell → memory → explore, then the cheapest route on their own map; inspectors: nearest-next route over the day's list, shortest walks, following the trail of signs to the burrow |
@@ -28,7 +28,7 @@ You are the **environment designer**: change the rules and the street, compare t
 
 ## Data
 
-All fetched on 2026-11-18 for the box W −73.9670, E −73.9500, S 40.8030, N 40.8200 (`data/raw/`), combined into `data/westharlem.json` by `node tools/build_place.mjs`.
+All fetched on 2026-11-18 for the box W −73.9670, E −73.9500, S 40.8030, N 40.8200 (`data/raw/`); the simulation uses W −73.9620, E −73.9500, S 40.8085, N 40.8195, combined into `data/manhattanville.json` by `node tools/build_place.mjs`.
 
 | What | Source |
 |---|---|
@@ -55,7 +55,8 @@ Open `index.html` through a web server from the repository root (for example `py
 | 1× … 120×, Pause (Space), Next night, Restart week | time |
 | Whole area / Follow selected / Street level | camera |
 | Rat paths tonight / Signs / Real reports / Light | the layer draped over the city and the map |
-| Select / Drop a trash bag | click a rat or inspector to see what it knows; or drop a bag and watch rats plan their way to it |
+| Drop a trash bag (button on the city) | its smell spreads in rings; the rats that catch it show a “!” and their route |
+| Watch the chases, Slow down for chases | the camera flies to each chase and time slows down; *Happening now* lists spotted / caught / got away (click to fly there) |
 | Design, Compare two, Evolve, Gallery, Real data | the environment designer |
 
 ## Files

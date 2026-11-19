@@ -108,3 +108,20 @@ dd { margin: 0; }
   .pane { grid-template-columns: 1fr; }
   .evolve { grid-template-columns: 1fr; }
 }
+
+.check { cursor: pointer; }
+.check input { accent-color: #ff6b3d; }
+.bagbtn { position: absolute; top: 12px; right: 12px; display: flex; align-items: center; gap: 8px; padding: 8px 14px 8px 8px; border-radius: 14px; background: rgba(19, 23, 28, 0.9); border: 1px solid #3a4552; backdrop-filter: blur(6px); font-size: 13px; line-height: 1.2; text-align: left; box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+.bagbtn canvas { width: 36px; height: 41px; }
+.bagbtn:hover { border-color: #ffd34d; }
+.bagbtn.on { background: #ffd34d; color: #16181c; border-color: #ffd34d; box-shadow: 0 0 0 4px rgba(255, 211, 77, 0.25); }
+.stage.placing #globe, .stage.placing canvas { cursor: crosshair; }
+.banner { position: absolute; top: 76px; right: 12px; max-width: 300px; background: rgba(255, 211, 77, 0.95); color: #16181c; border-radius: 10px; padding: 9px 12px; font-size: 13px; line-height: 1.45; transition: opacity 0.3s; }
+.banner.hide { opacity: 0; pointer-events: none; }
+.numbers .c-spot { color: #ffd34d; } .numbers .c-caught { color: #5fd38a; } .numbers .c-missed { color: #c9d1db; }
+.feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 190px; overflow: auto; }
+.feed li { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: #181d23; cursor: pointer; }
+.feed li.empty { color: var(--mute); background: none; cursor: default; font-size: 12px; }
+.feed li b { font-size: 11px; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 5px; color: #0b0d10; flex: none; }
+.feed li .k-spot { background: #ffd34d; } .feed li .k-caught { background: #5fd38a; } .feed li .k-missed { background: #c9d1db; } .feed li .k-burrow { background: #ff7a4a; } .feed li .k-dodge { background: #ffb08a; } .feed li .k-bag { background: #ffd34d; } .feed li .k-treat { background: #c58bff; }
+.feed li small { color: var(--mute); margin-left: auto; font-variant-numeric: tabular-nums; flex: none; }

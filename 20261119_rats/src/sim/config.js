@@ -2,7 +2,7 @@
 
 export const CONFIG = {
   seed: 20261119,
-  cellM: 8,                 // one grid cell is 8 m by 8 m
+  cellM: 6,                 // one grid cell is 6 m by 6 m
   tickMin: 1,               // one tick is one minute
   startHour: 17,            // a run starts at 5 pm on day 0
   days: 7,                  // a run is a week
@@ -10,7 +10,7 @@ export const CONFIG = {
   // ---- the street ------------------------------------------------------------------------
   lampEveryM: 32,           // New York lights every street; modelled poles every 32 m along each street
   pathLampEveryM: 48,       // and along campus and park paths
-  lampReach: 3.5,           // cells a pole lights (light falls off to 0 there)
+  lampReach: 4.5,           // cells a pole lights (light falls off to 0 there)
   people: { avenue: 1, street: 0.45, plaza: 0.8, path: 0.5, steps: 0.4, lawn: 0.12, yard: 0.03, woods: 0.05, subway: 1.5 },
 
   // ---- food ------------------------------------------------------------------------------
@@ -38,12 +38,14 @@ export const CONFIG = {
 
   // ---- rats ------------------------------------------------------------------------------
   rat: {
-    colonies: 26,
+    colonies: 16,
     startPerColony: [3, 6],
-    speed: 2,               // cells per tick while moving (16 m a minute, with stops)
-    smell: 14,              // cells: how far it smells food along open air (112 m)
-    sight: 3,               // cells: rats are near-sighted
-    homeRange: 26,          // cells (about 200 m): it rarely goes farther from its burrow
+    speed: 3,               // cells per tick while foraging (18 m a minute, with stops)
+    fleeSpeed: 7,           // cells per tick when running from someone (about 0.8 m/s)
+    smell: 18,              // cells: how far it smells food along open air (108 m)
+    sight: 3,               // cells it sees around it (rats are near-sighted)
+    alert: 6,               // cells: it notices a person with a flashlight this close (sees, hears)
+    homeRange: 32,          // cells (about 190 m): it rarely goes farther from its burrow
     need: 1,                // food units per night to stay fed
     carry: 1,               // eats where it finds food, up to this per visit
     eatTicks: 4,
@@ -53,28 +55,36 @@ export const CONFIG = {
     openShy: 0.8,           // extra cost away from a wall (rats run along walls)
     coverBonus: 0.5,        // cost taken off under an old-style sidewalk shed
     streetCross: 1.5,       // extra cost on a roadway
+    dangerCost: 3,          // extra cost near a place it was chased (memory, fading over days)
     neophobiaDays: 2,       // new objects (bait stations, bins) are avoided this long
     baitTake: 0.12,         // chance to eat bait at a station it passes, if hungry
     baitDaysToDie: [1, 3],
     starveNights: 3,        // dies after this many nights in a row with under a third of its need
-    litter: 0.07,           // per well-fed rat per night: young added to the colony (a litter of ~8 every ~4 months per rat, a share of them grown)
+    litter: 0.07,           // per well-fed rat per night: young added to the colony
     colonyMax: 16,
-    maxRats: 420,
+    maxRats: 320,
   },
 
-  // ---- inspectors -------------------------------------------------------------------------
+  // ---- inspectors: a night rat patrol with flashlights -----------------------------------
   inspector: {
     count: 2,
-    shift: [9, 17],         // hours
-    speed: 9,               // cells per tick (72 m a minute, walking)
-    sight: 5,               // cells
-    signSeen: 25,           // sign level that counts as evidence (droppings, rub marks, gnawing)
-    lookAt: 3,              // cells around the address that are checked
+    shift: [19, 3],         // hours: 7 pm to 3 am, when the rats are out
+    speed: 10,              // cells per tick walking (60 m a minute)
+    chaseSpeed: 9,          // cells per tick running after a rat, around parked cars and people
+    beam: 9,                // cells: how far the flashlight reaches (54 m)
+    beamDeg: 70,            // width of the beam
+    near: 2,                // cells it notices all around, without the beam
+    spotChance: 0.8,        // chance to spot a rat in the beam each tick (half as much in the dark part of the beam, under old sheds)
+    catchChance: 0.6,       // chance to catch it (trap, net) once within reach
+    reach: 1.5,             // cells
+    chaseTicks: 6,          // gives up after this long
+    signSeen: 10,           // sign level that counts as evidence (droppings, rub marks, gnawing)
+    lookAt: 4,              // cells around the address that are checked
     indexing: true,         // with no complaints left, they index the blocks around failed addresses
     shedHides: 0.5,         // under an old shed, half the signs are hidden from view
-    trailSteps: 12,         // how far it follows a trail of signs
-    inspectMin: 12,         // minutes spent at each address
-    treatKill: 0.25,        // share of a colony killed by baiting its burrow
+    trailSteps: 16,         // how far it follows a trail of signs
+    inspectMin: 8,          // minutes spent at each address
+    treatKill: 0.2,         // share of a colony killed by baiting its burrow
     stationsPerDay: 2,
     complaintDelayDays: 1,  // a sighting becomes a 311 call the next day
     compliance: 10,         // days before it comes back to a failed address

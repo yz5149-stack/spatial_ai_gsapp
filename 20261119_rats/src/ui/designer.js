@@ -231,7 +231,7 @@ export function makeDesigner({ state, city, dataUrl, restart, flash, $ }) {
     const g = cv.getContext('2d'); g.scale(dpr, dpr);
     const w = cv.clientWidth; const h = cv.clientHeight;
     g.fillStyle = '#0a0d11'; g.fillRect(0, 0, w, h);
-    const series = [['sight', '311 rat calls', '#ff3d6e'], ['ratFail', 'Inspections that found rats', '#ffaa3d'], ['bait', 'Burrows baited', '#c58bff']];
+    const series = [['sight', '311 rodent calls (this map)', '#ff3d6e'], ['ratFailWide', 'Inspections that found rats (Morningside + W Harlem)', '#ffaa3d'], ['baitWide', 'Burrows baited (same area)', '#c58bff']];
     const hi = Math.max(...keys.flatMap((k) => series.map(([s]) => months[k][s])));
     const X = (k) => 40 + (k / (keys.length - 1)) * (w - 60); const Y = (v) => h - 30 - (v / hi) * (h - 56);
     g.font = '11px system-ui';
@@ -240,7 +240,7 @@ export function makeDesigner({ state, city, dataUrl, restart, flash, $ }) {
     if (may >= 0) { g.strokeStyle = '#5fd38a'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(may), 20); g.lineTo(X(may), h - 28); g.stroke(); g.setLineDash([]); g.fillStyle = '#5fd38a'; g.fillText('Empire Bins in CB9', X(may) + 4, 30); }
     series.forEach(([s, label, col], j) => {
       g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); keys.forEach((k, i) => (i ? g.lineTo(X(i), Y(months[k][s])) : g.moveTo(X(i), Y(months[k][s])))); g.stroke();
-      g.fillStyle = col; g.fillText(label, 44 + j * 190, 14);
+      g.fillStyle = col; g.fillText(label, 44 + j * 300, 14);
     });
     const sum = (from, to, s) => keys.filter((k) => k >= from && k <= to).reduce((a, k) => a + months[k][s], 0);
     const before = sum('2023-12', '2024-11', 'sight'); const after = sum('2025-12', '2026-10', 'sight') * (12 / 11);
