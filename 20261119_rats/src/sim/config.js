@@ -38,8 +38,8 @@ export const CONFIG = {
 
   // ---- rats ------------------------------------------------------------------------------
   rat: {
-    colonies: 16,
-    startPerColony: [3, 6],
+    colonies: 12,
+    startPerColony: [4, 7],
     speed: 3,               // cells per tick while foraging (18 m a minute, with stops)
     fleeSpeed: 6,           // cells per tick when running from someone (about 0.8 m/s)
     smell: 18,              // cells: how far it smells food along open air (108 m)
@@ -62,7 +62,7 @@ export const CONFIG = {
     starveNights: 3,        // dies after this many nights in a row with under a third of its need
     litter: 0.07,           // per well-fed rat per night: young added to the colony
     colonyMax: 16,
-    maxRats: 320,
+    maxRats: 160,
   },
 
   // ---- inspectors: a night rat patrol with flashlights -----------------------------------
@@ -74,8 +74,8 @@ export const CONFIG = {
     beam: 9,                // cells: how far the flashlight reaches (54 m)
     beamDeg: 70,            // width of the beam
     near: 2,                // cells it notices all around, without the beam
-    spotChance: 0.8,        // chance to spot a rat in the beam each tick (half as much in the dark part of the beam, under old sheds)
-    catchChance: 0.7,       // chance to catch it (trap, net) once within reach
+    spotChance: 0.7,        // chance to spot a rat in the beam each tick (half as much in the dark part of the beam, under old sheds)
+    catchChance: 0.6,       // chance to catch it (trap, net) once within reach
     reach: 1.5,             // cells
     chaseTicks: 6,          // gives up after this long
     signSeen: 10,           // sign level that counts as evidence (droppings, rub marks, gnawing)

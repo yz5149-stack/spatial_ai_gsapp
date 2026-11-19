@@ -68,7 +68,7 @@ export function makeDesigner({ state, city, dataUrl, restart, flash, $ }) {
   }));
   $('d-reset').addEventListener('click', () => { state.design = makeDesign('now'); changed(); });
   $('d-random').addEventListener('click', () => { state.design = randomDesign(city, Math.floor(Math.random() * 1e9)); changed(); });
-  $('d-play').addEventListener('click', () => restart('design'));
+  $('d-play').addEventListener('click', () => { restart('design'); document.querySelector('.pages [data-page="watch"]')?.click(); });
   $('d-eval').addEventListener('click', async () => {
     $('d-eval').disabled = true; $('d-result').innerHTML = '<p class="hint">Running the week twice…</p>';
     try {
@@ -142,7 +142,7 @@ export function makeDesigner({ state, city, dataUrl, restart, flash, $ }) {
       el.append(thumbnail(city, { activity: m.map.activity, burrows: m.map.burrows, design: pair[k] }, { width: 520 }));
       el.insertAdjacentHTML('beforeend', `${resultTable(m, null)}<div class="row"><button class="primary" data-choose="${k}">Choose ${k ? 'B' : 'A'}</button><button data-playv="${k}">Play it</button><button data-savev="${k}">Save</button></div>`);
       el.querySelector('[data-choose]').addEventListener('click', () => { lineage.push(`${k ? 'B' : 'A'} (${fmt(m.score, 1)})`); state.design = cloneDesign(pair[k]); sync(); $('ab-lineage').textContent = `Chosen so far: ${lineage.join(' → ')}`; makePair(); });
-      el.querySelector('[data-playv]').addEventListener('click', () => { state.design = cloneDesign(pair[k]); sync(); restart('design'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+      el.querySelector('[data-playv]').addEventListener('click', () => { state.design = cloneDesign(pair[k]); sync(); restart('design'); document.querySelector('.pages [data-page="watch"]')?.click(); });
       el.querySelector('[data-savev]').addEventListener('click', () => save(pair[k], m, `Chosen variation ${lineage.length + 1}${k ? 'B' : 'A'}`));
     });
   }
@@ -169,7 +169,7 @@ export function makeDesigner({ state, city, dataUrl, restart, flash, $ }) {
     } catch (err) { console.error(err); $('ev-best').textContent = `Evolution failed: ${err.message}`; }
     $('ev-run').disabled = false;
   });
-  $('ev-play').addEventListener('click', () => { if (!evBest) return; state.design = cloneDesign(evBest.design); sync(); restart('design'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  $('ev-play').addEventListener('click', () => { if (!evBest) return; state.design = cloneDesign(evBest.design); sync(); restart('design'); document.querySelector('.pages [data-page="watch"]')?.click(); });
   $('ev-save').addEventListener('click', () => evBest && save(evBest.design, evBest.m, `Evolved (${$('ev-goal').value === 'paradise' ? 'rat paradise' : 'fewer rats'})`));
 
   function drawEvolution(cv, hist, goal) {
@@ -209,7 +209,7 @@ export function makeDesigner({ state, city, dataUrl, restart, flash, $ }) {
     for (const it of items) {
       const div = document.createElement('div'); div.className = 'item';
       div.innerHTML = `<b>${it.name}</b><p class="hint">${it.note ?? describeDesign(city, it.design)}</p><p class="hint score">…</p><div class="row"><button>Play</button></div>`;
-      div.querySelector('button').addEventListener('click', () => { state.design = cloneDesign(it.design); sync(); restart('design'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+      div.querySelector('button').addEventListener('click', () => { state.design = cloneDesign(it.design); sync(); restart('design'); document.querySelector('.pages [data-page="watch"]')?.click(); });
       el.append(div);
       const key = JSON.stringify(it.design);
       const p = thumbs.get(key) ?? pool.run(it.design, { seeds: [1], keepMap: true });
@@ -252,5 +252,5 @@ export function makeDesigner({ state, city, dataUrl, restart, flash, $ }) {
   }
 
   sync();
-  return { handlePick, setTool: (t) => { tool = t; document.querySelectorAll('[data-dtool]').forEach((o) => o.classList.toggle('on', o.dataset.dtool === tool)); } };
+  return { handlePick, renderData, setTool: (t) => { tool = t; document.querySelectorAll('[data-dtool]').forEach((o) => o.classList.toggle('on', o.dataset.dtool === tool)); } };
 }

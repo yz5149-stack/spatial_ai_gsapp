@@ -24,8 +24,8 @@ const read = async (p) => JSON.parse(await readFile(here(p), 'utf8'));
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 
 // the raw downloads cover W -73.9670, E -73.9500, S 40.8030, N 40.8200; the simulation focuses on
-// Manhattanville and 125th Street: Broadway to St Nicholas Park, about W 120th to W 133rd St
-export const BBOX = { west: -73.9620, east: -73.9500, south: 40.8085, north: 40.8195 };
+// 125th Street and Amsterdam Avenue: Broadway to Morningside Av, about W 122nd to W 129th St
+export const BBOX = { west: -73.9598, east: -73.9522, south: 40.8098, north: 40.8162 };
 const M = 0.0012;   // keep what touches a margin around the box
 const near = (lon, lat) => lon > BBOX.west - M && lon < BBOX.east + M && lat > BBOX.south - M && lat < BBOX.north + M;
 const touches = (pts) => pts.some(([x, y]) => near(x, y));
@@ -90,7 +90,7 @@ async function main() {
 
   const out = {
     id: 'manhattanville',
-    name: 'Manhattanville and 125th Street',
+    name: '125th Street & Amsterdam Avenue',
     bbox: BBOX,
     fetched: '2026-11-18',
     sources: {
