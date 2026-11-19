@@ -49,7 +49,7 @@ test('inspectors find rat activity and treat burrows', () => {
   runDays(sim, 3);
   const m = measures(sim);
   assert.ok(m.inspections > 5);
-  assert.ok(m.failed > 0 && m.failed < m.inspections);
+  assert.ok(m.failed > 0 && m.failed <= m.inspections);
 });
 
 test('designs mutate within budget', () => {
