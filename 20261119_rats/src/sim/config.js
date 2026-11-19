@@ -66,6 +66,16 @@ export const CONFIG = {
   },
 
   // ---- inspectors: a night rat patrol with flashlights -----------------------------------
+  // ---- traffic ---------------------------------------------------------------------------
+  // cars drive the streets and avenues; a rat on the roadway where a car passes may be hit
+  car: {
+    speed: 18,                 // cells a tick (about 6.5 km/h through the grid: slowed so you can watch them)
+    perLaneHour: [0.5, 0.3, 0.2, 0.15, 0.15, 0.3, 0.7, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.9, 0.8, 0.7, 0.6], // traffic by hour, 1 = busiest
+    spawn: 0.06,               // chance a lane starts a car each tick, at the busiest hour
+    avenueBoost: 2,            // avenues carry about twice the traffic
+    hit: 0.035,                // chance a rat in a car's path is hit
+  },
+
   inspector: {
     count: 2,
     shift: [19, 3],         // hours: 7 pm to 3 am, when the rats are out

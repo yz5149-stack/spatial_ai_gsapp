@@ -22,7 +22,7 @@ export function evaluateDesign(city, design, { days = city.config.days, seeds = 
     rats: avg((r) => r.rats), ratsStart: avg((r) => r.ratsStart), eaten: avg((r) => r.eaten), sightings: avg((r) => r.sightings),
     inspections: avg((r) => r.inspections), failed: avg((r) => r.failed), burrows: avg((r) => r.burrows), births: avg((r) => r.births),
     starved: avg((r) => r.deaths.starve), baited: avg((r) => r.deaths.bait), treated: avg((r) => r.deaths.treat), foodOut: avg((r) => r.foodOut),
-    realMatch: avg((r) => r.realMatch),
+    realMatch: avg((r) => r.realMatch), spotted: avg((r) => r.spotted), caught: avg((r) => r.caught), missed: avg((r) => r.missed),
   };
   m.score = score(m);
   m.cost = designCost(design);

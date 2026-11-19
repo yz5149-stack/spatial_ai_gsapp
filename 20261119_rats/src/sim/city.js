@@ -336,12 +336,53 @@ export function buildCity(place, config) {
   const nodes = [];
   for (let i = 0; i < N; i++) if (walk[i]) nodes.push(i);
 
+  // 15. lanes for cars: each street and avenue centreline as a run of roadway cells, both ways
+  const lanes = [];
+  {
+    // OSM cuts streets into many ways: chain the pieces of each street end to end first
+    const byName = new Map();
+    for (const l of streetLines) { const k = `${l.name ?? ''}|${l.kind}`; if (!byName.has(k)) byName.set(k, []); byName.get(k).push(l.g.map((p) => [p[0], p[1]])); }
+    const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1.5;
+    for (const [k, segs] of byName) {
+      const left = segs.slice();
+      while (left.length) {
+        let chain = left.shift(); let grew = true;
+        while (grew) {
+          grew = false;
+          for (let j = 0; j < left.length; j++) {
+            const g = left[j]; const a = chain[0]; const z = chain[chain.length - 1];
+            if (near(z, g[0])) chain = chain.concat(g.slice(1));
+            else if (near(z, g[g.length - 1])) chain = chain.concat(g.slice(0, -1).reverse());
+            else if (near(a, g[g.length - 1])) chain = g.slice(0, -1).concat(chain);
+            else if (near(a, g[0])) chain = g.slice(1).reverse().concat(chain);
+            else continue;
+            left.splice(j, 1); grew = true; break;
+          }
+        }
+        const cells = [];
+        for (let q = 0; q + 1 < chain.length; q++) {
+          const [x0, y0] = chain[q]; const [x1, y1] = chain[q + 1];
+          const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2));
+          for (let t = 0; t <= n; t++) {
+            const x = Math.floor(x0 + ((x1 - x0) * t) / n); const y = Math.floor(y0 + ((y1 - y0) * t) / n);
+            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+            const i = y * W + x;
+            if (cells[cells.length - 1] !== i) cells.push(i);
+          }
+        }
+        if (cells.filter((i) => road[i]).length < 25) continue;
+        const [name, kind] = k.split('|');
+        lanes.push({ name, kind, cells }, { name, kind, cells: cells.slice().reverse() });
+      }
+    }
+  }
+
   return {
     config, place: { id: place.id, name: place.name, sources: place.sources, ridership: place.ridership, months: R.months },
     geo, W, H, N, cellM, ground, surface, walk, wall, road, soil, elev, height, bldgId, buildings, trees,
     light, poles, people, subways, names, street, cross, corners, sources, sheds, sheds2023,
     real: { pts: realPts, map: realMap, r311: realPts.filter((p) => p.kind === '311').length, inspections: (R.inspections ?? []).length },
-    nodes, seedRng: rng.next(),
+    nodes, lanes, seedRng: rng.next(),
   };
 }
 

@@ -48,7 +48,8 @@ export function newSim(city, design, { seed = city.config.seed, config = city.co
     blocked: new Uint8Array(N),        // cells rats will not enter (fresh bait stations, for a while)
     rats: [], colonies: [], inspectors: [], stations: [], complaints: [], events: [],
     daily: [], today: blankDay(0),
-    totals: { eaten: 0, sightings: 0, complaints: 0, inspections: 0, failed: 0, burrowsTreated: 0, spotted: 0, caught: 0, missed: 0, deaths: { bait: 0, starve: 0, treat: 0, caught: 0 }, births: 0 },
+    totals: { eaten: 0, sightings: 0, complaints: 0, inspections: 0, failed: 0, burrowsTreated: 0, spotted: 0, caught: 0, missed: 0, deaths: { bait: 0, starve: 0, treat: 0, caught: 0, car: 0 }, births: 0 },
+    cars: [], carRng: makeRng(seed ^ 0xca5), carSeq: 0,
     fx: [], fxSeq: 0,                  // things worth showing: spotted, caught, missed, burrow found
     nextId: 1,
     inspectedAt: new Map(),
@@ -410,6 +411,7 @@ function killRat(sim, rat, cause) {
   if (cause === 'bait') sim.today.deathsBait++;
   else if (cause === 'starve') sim.today.deathsStarve++;
   else if (cause === 'caught') sim.today.caught++;
+  else if (cause === 'car') sim.today.roadkill = (sim.today.roadkill ?? 0) + 1;
   else sim.today.deathsTreat++;
 }
 
@@ -793,9 +795,38 @@ export function stepSim(sim) {
   for (const ins of sim.inspectors) {
     inspectorStep(sim, ins, m, h);
   }
+  traffic(sim, h);
   sim.t += sim.cfg.tickMin; sim.steps++;
   // a new day starts at midnight in the daily record
   if (minuteOfDay(sim) === 0) closeDay(sim);
+}
+
+// cars: start at one end of a lane, drive to the other; any rat out on the roadway they pass may be hit
+function traffic(sim, h) {
+  const C = sim.cfg.car; const city = sim.city; const rng = sim.carRng;
+  if (!C || !city.lanes?.length) return;
+  const busy = C.perLaneHour[Math.floor(h) % 24];
+  city.lanes.forEach((lane, k) => {
+    if (rng.chance(C.spawn * busy * (lane.kind === 'avenue' ? C.avenueBoost : 1))) sim.cars.push({ id: ++sim.carSeq, lane: k, pos: 0, cell: lane.cells[0], moved: [lane.cells[0]], color: Math.floor(rng.next() * 8) });
+  });
+  if (!sim.cars.length) return;
+  const onRoad = new Map();
+  for (const r of sim.rats) if (r.alive && r.mode !== 'home' && r.mode !== 'dead' && city.road[r.cell]) onRoad.set(r.cell, r);
+  for (const car of sim.cars) {
+    const cells = city.lanes[car.lane].cells;
+    const from = car.pos; car.pos = Math.min(cells.length - 1, car.pos + C.speed);
+    car.moved = cells.slice(from, car.pos + 1); car.cell = cells[car.pos];
+    if (!onRoad.size) continue;
+    for (const c of car.moved) {
+      const r = onRoad.get(c);
+      if (!r || !r.alive || !rng.chance(C.hit)) continue;
+      const a = cells[Math.max(0, car.pos - 1)]; const b = car.cell;
+      killRat(sim, r, 'car');
+      fx(sim, 'roadkill', r.cell, 'Hit by a car', { rat: r.id, car: car.id, dx: (b % sim.W) - (a % sim.W), dy: Math.floor(b / sim.W) - Math.floor(a / sim.W) });
+      onRoad.delete(c);
+    }
+  }
+  sim.cars = sim.cars.filter((c) => c.pos < city.lanes[c.lane].cells.length - 1 || c.moved.length > 1);
 }
 
 function closeDay(sim) {

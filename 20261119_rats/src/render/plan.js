@@ -58,7 +58,7 @@ export function makePlan(canvas, city, scale = 2) {
   const g = canvas.getContext('2d');
   let lastLayerAt = 0; let layerImg = null; let lastKey = '';
 
-  function draw(sim, { layer = 'activity', selected = null, now = 0, hover = -1 } = {}) {
+  function draw(sim, { layer = 'activity', selected = null, now = 0, hover = -1, designOnly = false } = {}) {
     const { W } = city;
     // the layer image is rebuilt twice a second
     const key = `${layer}|${sim.design?.name}`;
@@ -76,13 +76,14 @@ export function makePlan(canvas, city, scale = 2) {
     // sheds
     for (const sh of sim.sheds) {
       if (sh.type === 'gone') continue;
-      g.fillStyle = sh.type === 'old' ? 'rgba(90,200,220,0.9)' : 'rgba(230,245,255,0.9)';
+      g.fillStyle = sh.type === 'old' ? 'rgba(90,200,220,0.9)' : 'rgba(63,167,196,0.35)';
       for (const c of sh.cells) g.fillRect((c % W) * s, Math.floor(c / W) * s, s, s);
     }
     // real reports
     if (layer === 'real') {
       for (const p of city.real.pts) { g.fillStyle = p.kind === '311' ? 'rgba(255,61,110,0.8)' : 'rgba(255,170,61,0.7)'; g.fillRect(px(p.cell) - 1, py(p.cell) - 1, 2, 2); }
     }
+    if (designOnly) { drawDesignMarks(g, city, sim, s, px, py); return; }
     // food within reach now
     for (const src of sim.sources) {
       if (src.amt > 0.05) { g.fillStyle = 'rgba(255,211,77,0.95)'; g.fillRect(px(src.cell) - 1.5, py(src.cell) - 1.5, 3, 3); }
@@ -135,6 +136,19 @@ export function makePlan(canvas, city, scale = 2) {
   }
 
   return { draw, cellAt };
+}
+
+// the design's own things, large enough to read on the "What if" page
+export const MARK = { station: '#7d5bb5', guard: '#2f9e62', light: '#e0a100', bin: '#2c3a52', shed: '#3fa7c4' };
+function drawDesignMarks(g, city, sim, s, px, py) {
+  const d = sim.design; const r = Math.max(4, s * 1.4);
+  g.lineWidth = 1.5;
+  // bins: every source whose trash is in a lidded bin
+  for (const src of sim.sources) if (src.binned && src.kind !== 'basket') { g.fillStyle = MARK.bin; g.globalAlpha = 0.55; g.fillRect(px(src.cell) - r * 0.45, py(src.cell) - r * 0.45, r * 0.9, r * 0.9); }
+  g.globalAlpha = 1;
+  for (const c of d.guards) { g.fillStyle = MARK.guard; g.beginPath(); g.moveTo(px(c), py(c) - r); g.lineTo(px(c) + r, py(c)); g.lineTo(px(c), py(c) + r); g.lineTo(px(c) - r, py(c)); g.closePath(); g.fill(); }
+  for (const c of d.lights) { g.fillStyle = 'rgba(224,161,0,0.25)'; g.beginPath(); g.arc(px(c), py(c), r * 2.6, 0, Math.PI * 2); g.fill(); g.fillStyle = MARK.light; g.beginPath(); g.arc(px(c), py(c), r * 0.8, 0, Math.PI * 2); g.fill(); }
+  for (const c of d.stations) { g.fillStyle = MARK.station; g.strokeStyle = '#fff'; g.fillRect(px(c) - r, py(c) - r, r * 2, r * 2); g.strokeRect(px(c) - r, py(c) - r, r * 2, r * 2); }
 }
 
 // a small static map of a finished run: where rats went, burrows left, the design's things
