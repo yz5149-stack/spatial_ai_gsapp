@@ -11,11 +11,11 @@ const place = JSON.parse(await readFile(new URL('../data/manhattanville.json', i
 const city = buildCity(place, CONFIG);
 
 test('the city is built from the real data', () => {
-  assert.ok(city.W > 150 && city.H > 200);
-  assert.ok(city.nodes.length > 10000, 'walkable ground');
-  assert.ok(city.sources.filter((s) => s.kind === 'restaurant').length > 30, 'restaurants from DOHMH');
-  assert.ok(city.sheds.length > 10, 'sidewalk sheds from DOB permits');
-  assert.ok(city.real.pts.length > 300, 'real 311 and inspection points');
+  assert.ok(city.W > 90 && city.H > 100);
+  assert.ok(city.nodes.length > 5000, 'walkable ground');
+  assert.ok(city.sources.filter((s) => s.kind === 'restaurant').length > 10, 'restaurants from DOHMH');
+  assert.ok(city.sheds.length > 5, 'sidewalk sheds from DOB permits');
+  assert.ok(city.real.pts.length > 200, 'real 311 and inspection points');
   const loc = describeLocation(city, city.nodes[5000]);
   assert.ok(loc.lonlat[0] < -73.94 && loc.lonlat[1] > 40.8, 'lon/lat frame');
   assert.ok(typeof loc.street === 'string');
@@ -48,7 +48,7 @@ test('inspectors find rat activity and treat burrows', () => {
   const sim = newSim(city, makeDesign('now'));
   runDays(sim, 3);
   const m = measures(sim);
-  assert.ok(m.inspections > 20);
+  assert.ok(m.inspections > 5);
   assert.ok(m.failed > 0 && m.failed < m.inspections);
 });
 

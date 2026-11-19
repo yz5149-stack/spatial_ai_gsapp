@@ -4,109 +4,100 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rat City</title>
-  <meta name="description" content="Rats and a night rat patrol on 125th Street, Harlem, as a point cloud built from NYC survey data, with an environment designer.">
+  <meta name="description" content="Rats and a night rat patrol on 125th Street, Harlem, drawn as an axonometric from NYC survey data, with an environment designer.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=5">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=7">
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
   </script>
 </head>
 <body>
   <nav class="topbar">
-    <div class="logo"><i></i><b>RAT CITY</b><span>125TH ST · HARLEM · NYC</span></div>
+    <div class="logo"><b>Rat City</b><span>125th Street &amp; Amsterdam Avenue, Harlem</span></div>
     <div class="pages">
-      <button data-page="watch" class="on"><em>01</em>Watch</button>
-      <button data-page="design"><em>02</em>Design</button>
-      <button data-page="data"><em>03</em>Data</button>
+      <button data-page="watch" class="on">Watch</button>
+      <button data-page="design">Design</button>
+      <button data-page="data">About the data</button>
     </div>
     <div class="rules">
-      <span>RULES</span>
-      <select id="scenario">
-        <option value="y2022">2022 · bags out 4 pm, no bins</option>
-        <option value="now" selected>Now · bags 8 pm, bins + Empire Bins</option>
-        <option value="design">Your design</option>
-      </select>
+      <label>Rules
+        <select id="scenario">
+          <option value="y2022">2022 — bags out at 4 pm, no bins</option>
+          <option value="now" selected>Today — bags at 8 pm, bins</option>
+          <option value="design">Your design</option>
+        </select>
+      </label>
     </div>
   </nav>
 
-  <!-- 01 WATCH ----------------------------------------------------------------------------- -->
+  <!-- WATCH -------------------------------------------------------------------------------------- -->
   <section class="page" data-page="watch">
     <div id="cloud" class="cloud"></div>
     <div id="labels" class="labels"></div>
-    <div class="vignette"></div>
 
-    <div class="hud hud-time">
-      <div class="clock"><b id="clock">17:00</b><span id="day">NIGHT 1</span></div>
-      <div class="phase" id="phase">Evening. Trash bags go out at 8 pm.</div>
-      <div class="timeline" id="timeline">
-        <div class="tl-row"><span>TRASH</span><i class="tl-band b-bags" id="tl-bags"></i></div>
-        <div class="tl-row"><span>RATS</span><i class="tl-band b-rats" id="tl-rats"></i></div>
-        <div class="tl-row"><span>PATROL</span><i class="tl-band b-patrol" id="tl-patrol"></i></div>
-        <div class="tl-axis"><span>12P</span><span>6P</span><span>12A</span><span>6A</span><span>12P</span></div>
+    <div class="card time">
+      <div class="clock"><b id="clock">18:30</b><span id="day">Night 1 of 7</span></div>
+      <p id="phase">Evening. The rats are leaving their burrows.</p>
+      <div class="timeline">
+        <div class="tl-row"><span>Trash out</span><i class="tl-band b-bags" id="tl-bags"></i></div>
+        <div class="tl-row"><span>Rats out</span><i class="tl-band b-rats" id="tl-rats"></i></div>
+        <div class="tl-row"><span>Patrol</span><i class="tl-band b-patrol" id="tl-patrol"></i></div>
+        <div class="tl-axis"><span>noon</span><span>6 pm</span><span>midnight</span><span>6 am</span><span>noon</span></div>
         <i class="tl-now" id="tl-now"></i>
       </div>
     </div>
 
-    <div class="hud hud-cast">
-      <h4>CAST</h4>
-      <ul id="cast"></ul>
-      <p class="tiny">Click a name to follow. Click anything in the city to select it.</p>
+    <div class="card score">
+      <div><b id="n-rats">0</b><span>rats</span></div>
+      <div class="c-caught"><b id="n-caught">0</b><span>caught</span></div>
+      <div class="c-missed"><b id="n-missed">0</b><span>got away</span></div>
     </div>
 
-    <div class="hud hud-stats">
-      <div class="stat"><b id="n-rats">0</b><span>RATS ALIVE</span></div>
-      <div class="stat c-spot"><b id="n-spot">0</b><span>SPOTTED</span></div>
-      <div class="stat c-caught"><b id="n-caught">0</b><span>CAUGHT</span></div>
-      <div class="stat c-missed"><b id="n-missed">0</b><span>GOT AWAY</span></div>
+    <div class="card feedcard">
+      <h4>What just happened</h4>
+      <ul id="feed"><li class="empty">The patrol starts at 7 pm.</li></ul>
     </div>
 
-    <div class="hud hud-feed">
-      <h4>LIVE</h4>
-      <ul id="feed"><li class="empty">Rats leave their burrows at 6:30 pm. The patrol starts at 7 pm.</li></ul>
-    </div>
-
-    <div class="hud hud-agent hide" id="agent-card">
+    <div class="card agent hide" id="agent-card">
       <div class="ag-head"><i id="a-dot"></i><b id="a-name">—</b><span id="a-mode"></span><button id="a-close" title="Close">×</button></div>
       <div class="ag-body">
         <canvas id="mind" class="mind"></canvas>
         <dl id="a-facts"></dl>
       </div>
+      <p class="tiny">Left: what it knows of the street (grey), its path, what it remembers (yellow), its burrow (red).</p>
     </div>
 
-    <div class="hud hud-controls">
-      <div class="group">
-        <button id="btn-pause" class="icon" title="Pause (Space)">❚❚</button>
-        <div class="seg" id="speeds"><button data-speed="3">½×</button><button data-speed="10">1×</button><button data-speed="40" class="on">4×</button><button data-speed="200">20×</button><button data-speed="1000">100×</button></div>
-        <button id="btn-skip" title="Run to 7 pm">NEXT NIGHT ▸</button>
-        <button id="btn-restart" title="Restart the week">↺</button>
+    <div class="bar">
+      <button id="btn-pause" class="round" title="Pause (Space)">❚❚</button>
+      <div class="seg" id="speeds">
+        <button data-speed="story" class="on" title="Slows down for chases, skips the day">Story</button>
+        <button data-speed="0.6">Slow</button>
+        <button data-speed="3">Normal</button>
+        <button data-speed="15">Fast</button>
       </div>
-      <div class="group">
-        <button class="bag" id="btn-bag"><canvas id="bag-ico" width="54" height="61"></canvas>DROP TRASH</button>
-      </div>
-      <div class="group">
-        <span class="lbl">CAMERA</span>
-        <div class="seg" id="views"><button data-view="auto" class="on">Chases</button><button data-view="city">Overview</button><button data-view="follow">Follow</button></div>
-        <label class="chk"><input type="checkbox" id="slowmo" checked>slow-mo</label>
-      </div>
-      <div class="group">
-        <span class="lbl">GROUND</span>
-        <div class="seg" id="layers"><button data-layer="activity" class="on">Rat trails</button><button data-layer="signs">Signs</button><button data-layer="real">Real 311</button><button data-layer="none">Plain</button></div>
-      </div>
+      <button id="btn-skip">Next night</button>
+      <span class="sep"></span>
+      <button class="bag" id="btn-bag"><canvas id="bag-ico" width="54" height="61"></canvas>Drop a trash bag</button>
+      <span class="sep"></span>
+      <div class="seg" id="views"><button data-view="auto" class="on" title="The camera goes to each chase">Follow the action</button><button data-view="city">Whole area</button></div>
+      <label class="chk"><input type="checkbox" id="trails" checked>Rat trails</label>
+      <label class="chk"><input type="checkbox" id="real">Real 311 calls</label>
+      <button id="btn-restart" class="ghost" title="Restart the week">Restart</button>
     </div>
 
     <div class="banner hide" id="banner"></div>
     <div class="toast hide" id="toast"></div>
-    <div class="fallback" id="cloud-fallback" hidden>The 3D view needs WebGL. Open this page in a recent desktop browser.</div>
+    <div class="fallback" id="cloud-fallback" hidden>The drawing needs WebGL. Open this page in a recent desktop browser.</div>
   </section>
 
-  <!-- 02 DESIGN ------------------------------------------------------------------------------- -->
+  <!-- DESIGN --------------------------------------------------------------------------------------- -->
   <section class="page" data-page="design" hidden>
     <div class="design">
       <header class="d-head">
         <div>
-          <h2>Environment designer</h2>
-          <p>Change the street, run the week, keep what works. Fewer rats is better; or ask for a rat paradise to learn what a street must not do.</p>
+          <h2>Design the street</h2>
+          <p>Change the rules and the street, run a week, see how many rats are left. Or let the computer evolve designs.</p>
         </div>
         <div class="tabs">
           <button data-tab="edit" class="on">Edit</button>
@@ -114,24 +105,24 @@
           <button data-tab="evolve">Evolve</button>
           <button data-tab="gallery">Gallery</button>
         </div>
-        <div class="budget"><span id="budget-text">BUDGET</span><i><em id="budget-bar"></em></i></div>
+        <div class="budget"><span id="budget-text">Budget</span><i><em id="budget-bar"></em></i></div>
       </header>
 
       <div class="pane" data-pane="edit">
         <div class="col">
-          <h4>CITY RULES</h4>
-          <label>Residential bags go out<select id="d-setout"><option value="16">4 pm (before 2023)</option><option value="18">6 pm</option><option value="20">8 pm (now)</option><option value="22">10 pm</option></select></label>
+          <h4>City rules</h4>
+          <label>Residential bags go out<select id="d-setout"><option value="16">4 pm (before 2023)</option><option value="18">6 pm</option><option value="20">8 pm (today)</option><option value="22">10 pm</option></select></label>
           <label>Collection<select id="d-pickup"><option value="morning">Morning (6–11 am)</option><option value="night">Night shift (12–4 am)</option></select></label>
           <label>Trash in bins<select id="d-binning"><option value="none">No bin rule</option><option value="small">Buildings of 1–9 units (2024)</option><option value="cb9">+ Empire Bins (2025)</option><option value="all">Every building</option></select></label>
           <label>Sidewalk sheds<select id="d-shedset"><option value="now">Active today (DOB permits)</option><option value="2023">Active in July 2023</option></select></label>
           <label>Night patrol<select id="d-inspectors"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></label>
-          <h4>PLACE ON THE MAP</h4>
+          <h4>Place on the plan</h4>
           <div class="tools" id="d-tools">
             <button data-dtool="station"><i class="sw sw-station"></i>Bait station</button>
             <button data-dtool="light"><i class="sw sw-light"></i>Street light</button>
-            <button data-dtool="guard"><i class="sw sw-guard"></i>Seal tree pit / yard</button>
-            <button data-dtool="bin"><i class="sw sw-bin"></i>Bin a building</button>
-            <button data-dtool="shed"><i class="sw sw-shed"></i>Shed: old → clear → gone</button>
+            <button data-dtool="guard"><i class="sw sw-guard"></i>Seal a tree pit / yard</button>
+            <button data-dtool="bin"><i class="sw sw-bin"></i>Bins for a building</button>
+            <button data-dtool="shed"><i class="sw sw-shed"></i>Shed: old → see-through → removed</button>
             <button data-dtool="erase"><i class="sw sw-erase"></i>Remove</button>
           </div>
         </div>
@@ -139,55 +130,55 @@
           <canvas id="dplan" class="dplan"></canvas>
           <p class="tiny" id="d-summary"></p>
           <div class="row">
-            <button id="d-eval" class="primary">RUN A WEEK ×2</button>
-            <button id="d-play">Watch it in 3D</button>
-            <button id="d-reset">Reset to “Now”</button>
-            <button id="d-random">Random</button>
+            <button id="d-eval" class="primary">Run a week</button>
+            <button id="d-play">Watch it</button>
+            <button id="d-reset">Reset to today</button>
+            <button id="d-random">Random design</button>
           </div>
         </div>
-        <div class="col result" id="d-result"><p class="tiny">Run a week to see how many rats are left, how often they were seen and caught, and what the design costs. Differences are against today's rules.</p></div>
+        <div class="col result" id="d-result"><p class="tiny">Run a week to see how many rats are left, how often they were seen and caught, and what the design costs, compared with today's rules.</p></div>
       </div>
 
       <div class="pane" data-pane="compare" hidden>
-        <p class="tiny">Two variations of your design run the same week. Choose one; two new variations grow from it. You steer, the simulation measures.</p>
+        <p class="tiny">Two variations of your design run the same week. Choose one; two new variations grow from it.</p>
         <div class="ab"><div class="variant" id="var-a"></div><div class="variant" id="var-b"></div></div>
-        <div class="row"><button id="ab-start" class="primary">MAKE TWO VARIATIONS</button><span id="ab-lineage" class="tiny"></span></div>
+        <div class="row"><button id="ab-start" class="primary">Make two variations</button><span id="ab-lineage" class="tiny"></span></div>
       </div>
 
       <div class="pane" data-pane="evolve" hidden>
         <div class="row">
           <label>Goal<select id="ev-goal"><option value="civic">Fewer rats</option><option value="paradise">Rat paradise</option></select></label>
           <label>Epochs<select id="ev-epochs"><option>4</option><option selected>6</option><option>10</option></select></label>
-          <label>Variations / epoch<select id="ev-pop"><option>3</option><option selected>4</option><option>6</option></select></label>
-          <button id="ev-run" class="primary">EVOLVE</button>
+          <label>Variations per epoch<select id="ev-pop"><option>3</option><option selected>4</option><option>6</option></select></label>
+          <button id="ev-run" class="primary">Evolve</button>
           <button id="ev-play" disabled>Watch the best</button>
           <button id="ev-save" disabled>Save</button>
         </div>
-        <div class="evolve"><canvas id="ev-chart" class="chart"></canvas><div id="ev-best" class="tiny">Each epoch breeds variations of the best design so far, runs each for a week, and keeps the best.</div></div>
+        <div class="evolve"><canvas id="ev-chart" class="chart"></canvas><div id="ev-best" class="tiny">Each epoch makes variations of the best design so far, runs each for a week, and keeps the best.</div></div>
       </div>
 
       <div class="pane" data-pane="gallery" hidden><div class="gallery" id="gallery"></div></div>
     </div>
   </section>
 
-  <!-- 03 DATA ------------------------------------------------------------------------------------ -->
+  <!-- DATA ------------------------------------------------------------------------------------------- -->
   <section class="page" data-page="data" hidden>
     <div class="data">
       <div class="d-left">
         <h2>The real place</h2>
-        <p>125th Street and Amsterdam Avenue, Harlem: about 650 × 700 m between Broadway and Morningside Avenue, W 122nd to W 129th Street, with the General Grant Houses and the 125th Street shops. The point cloud is generated from the city's survey: every building footprint and roof height, every ground elevation point, every street tree; the simulation runs on 6 m cells.</p>
+        <p>125th Street and Amsterdam Avenue, Harlem: about 650 × 700 m from Broadway to Morningside Avenue, W 122nd to W 129th Street, with the General Grant Houses and the 125th Street shops. Buildings are the city's surveyed footprints and roof heights; the ground follows its surveyed elevation points; the simulation runs on 6 m cells.</p>
         <canvas id="real-chart" class="chart"></canvas>
         <div class="tiny" id="real-notes"></div>
       </div>
       <div class="d-right">
-        <h4>HOW IT WORKS</h4>
+        <h4>How it works</h4>
         <ol class="how">
-          <li><b>Trash goes out.</b> Each building sets out bags at the rule's hour; restaurants after closing. Bags tear open hour by hour; bins keep almost everything out of reach.</li>
-          <li><b>Rats forage.</b> They smell food along the open air (about 100 m), run along walls, avoid light and people, remember where and when they ate, and where they were chased.</li>
+          <li><b>Trash goes out.</b> Each building sets out bags at the rule's hour; restaurants after closing. Bags tear open hour by hour; bins keep almost everything in.</li>
+          <li><b>Rats forage.</b> They smell food along the open air (about 100 m), run along walls, avoid light and people, and remember where and when they ate, and where they were chased.</li>
           <li><b>The patrol hunts.</b> Inspectors answer 311 calls with flashlights. A rat in the beam is chased: caught, or it gets away — into its burrow, which gives the burrow away.</li>
-          <li><b>You design.</b> Change rules and the street; compare two variations or let designs evolve over a week of simulated nights.</li>
+          <li><b>You design.</b> Change rules and the street; compare two variations, or let designs evolve over a week of simulated nights.</li>
         </ol>
-        <h4>SOURCES</h4>
+        <h4>Sources</h4>
         <ul class="src">
           <li>NYC 311 Service Requests (rodent), 2023–2026</li>
           <li>DOHMH Rodent Inspection; Restaurant Inspection Results (04K)</li>
@@ -204,19 +195,18 @@
 
   <div class="start" id="screen-start">
     <div class="start-card">
-      <p class="kicker">SPATIAL AI · COLUMBIA GSAPP</p>
-      <h1>RAT CITY</h1>
-      <p class="lead">One week on 125th Street. Rats come out after dark to find the city's trash. A night patrol with flashlights hunts them. You decide what the street looks like.</p>
+      <p class="kicker">Spatial AI · Columbia GSAPP</p>
+      <h1>Rat City</h1>
+      <p class="lead">A week of nights on 125th Street. Rats come out after dark to find the city's trash. A night patrol with flashlights hunts them. You decide what the street looks like.</p>
       <div class="legend3">
-        <div><i class="lg-rat"></i>Rat — smells food, avoids light, remembers</div>
-        <div><i class="lg-ins"></i>Inspector — flashlight beam, chases rats</div>
-        <div><i class="lg-bag"></i>Trash — set out by the city's rules</div>
+        <div><i class="lg-rat"></i><b>Rats</b> smell food, keep to the walls, avoid light, remember where they ate</div>
+        <div><i class="lg-ins"></i><b>Inspectors</b> walk with flashlights; a rat in the beam is chased</div>
+        <div><i class="lg-bag"></i><b>Trash</b> goes out by the city's rules — or drop your own bag</div>
       </div>
-      <button id="btn-start" class="primary big">START AT 5 PM ▸</button>
-      <p class="tiny">Built from NYC Open Data: 311 rodent calls, rodent and restaurant inspections, sidewalk shed permits, litter baskets, building footprints and elevations; MTA ridership; OpenStreetMap.</p>
+      <button id="btn-start" class="primary big">Start the first night</button>
     </div>
   </div>
 
-  <script type="module" src="src/ui/main.js?v=6"></script>
+  <script type="module" src="src/ui/main.js?v=7"></script>
 </body>
 </html>

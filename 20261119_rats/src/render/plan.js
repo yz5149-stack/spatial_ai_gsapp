@@ -15,14 +15,14 @@ export function baseImage(city) {
   const d = img.data;
   for (let i = 0; i < N; i++) {
     let c;
-    if (city.ground[i] === G.BLDG) { const h = Math.min(1, city.height[i] / 60); c = [40 + 30 * h, 45 + 30 * h, 54 + 34 * h]; }
-    else if (city.ground[i] === G.WATER) c = [10, 22, 36];
-    else if (!city.walk[i]) c = [14, 16, 19];
-    else if (city.road[i]) c = [22, 26, 32];
-    else if (city.surface[i] === S.LAWN || city.surface[i] === S.WOODS) c = [24, 48, 30];
-    else if (city.surface[i] === S.YARD) c = [36, 40, 30];
-    else if (city.wall[i]) c = [62, 68, 78];
-    else c = [44, 50, 58];
+    if (city.ground[i] === G.BLDG) { const h = Math.min(1, city.height[i] / 60); c = [255 - 60 * h, 255 - 60 * h, 252 - 58 * h]; }
+    else if (city.ground[i] === G.WATER) c = [200, 220, 235];
+    else if (!city.walk[i]) c = [232, 230, 224];
+    else if (city.road[i]) c = [212, 214, 216];
+    else if (city.surface[i] === S.LAWN || city.surface[i] === S.WOODS) c = [214, 228, 206];
+    else if (city.surface[i] === S.YARD) c = [228, 234, 220];
+    else if (city.wall[i]) c = [246, 245, 241];
+    else c = [238, 237, 232];
     d[i * 4] = c[0]; d[i * 4 + 1] = c[1]; d[i * 4 + 2] = c[2]; d[i * 4 + 3] = 255;
   }
   return img;
@@ -163,7 +163,7 @@ export function drawMind(canvas, sim, a) {
   const city = sim.city; const W = city.W;
   const g = canvas.getContext('2d');
   canvas.width = 150; canvas.height = 150;
-  g.fillStyle = '#05070a'; g.fillRect(0, 0, 150, 150);
+  g.fillStyle = '#efede7'; g.fillRect(0, 0, 150, 150);
   if (!a) return;
   // a window around the agent (rats) or the whole area (inspectors)
   const span = a.kind === 'rat' ? 64 : Math.max(city.W, city.H);
@@ -173,12 +173,12 @@ export function drawMind(canvas, sim, a) {
   const img = g.createImageData(150, 150);
   for (let py = 0; py < 150; py++) for (let px = 0; px < 150; px++) {
     const x = Math.floor(x0 + px / s); const y = Math.floor(y0 + py / s);
-    const k = (py * 150 + px) * 4; img.data[k + 3] = 255;
+    const k = (py * 150 + px) * 4; img.data[k] = 239; img.data[k + 1] = 237; img.data[k + 2] = 231; img.data[k + 3] = 255;
     if (x < 0 || y < 0 || x >= W || y >= city.H) continue;
     const i = y * W + x;
     const known = a.known[i];
     if (!known) continue;
-    const c = city.walk[i] ? (city.wall[i] ? [96, 104, 116] : [62, 70, 80]) : [30, 34, 40];
+    const c = city.walk[i] ? (city.wall[i] ? [150, 152, 156] : [190, 192, 196]) : [90, 92, 98];
     img.data[k] = c[0]; img.data[k + 1] = c[1]; img.data[k + 2] = c[2];
   }
   g.putImageData(img, 0, 0);

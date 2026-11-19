@@ -5,7 +5,7 @@
 **Live:** https://yz5149-stack.github.io/spatial_ai_gsapp/20261119_rats/
 **Semantic model:** [semantic-model.md](semantic-model.md)
 
-Rats and a night rat patrol in real Manhattanville and 125th Street (Broadway to St Nicholas Park, about W 120th to W 133rd St), on Google's photorealistic 3D city. Rats come out after dark: they smell food along the open air, run along walls, keep out of light and away from people, and remember where (and when) they found food and where they were chased. Inspectors walk the night with flashlights: they answer 311 calls, look for droppings and gnawing, follow the trail to the burrow, bait it and seal it; a rat caught in the beam is chased and is either caught or gets away (into its burrow, which gives the burrow away). Chases play in slow motion and the camera follows them. The city sets the table: when bags go out, whether trash is in bins, where lights and sidewalk sheds are.
+Rats and a night rat patrol on 125th Street and Amsterdam Avenue, Harlem (Broadway to Morningside Av, W 122nd to W 129th St), drawn as an architectural axonometric from the city's surveyed building footprints, roof heights and ground elevations. Rats come out after dark: they smell food along the open air, run along walls, keep out of light and away from people, and remember where (and when) they found food and where they were chased. Inspectors walk the night with flashlights: they answer 311 calls, look for droppings and gnawing, follow the trail to the burrow, bait it and seal it; a rat caught in the beam is chased and is either caught or gets away (into its burrow, which gives the burrow away). Chases play in slow motion and the camera follows them. The city sets the table: when bags go out, whether trash is in bins, where lights and sidewalk sheds are.
 
 You are the **environment designer**: change the rules and the street, compare two variations and choose, or let designs evolve over epochs, toward fewer rats or (to learn what not to do) toward a rat paradise.
 
@@ -24,7 +24,7 @@ You are the **environment designer**: change the rules and the street, compare t
 | Physical, partially observable, multi-agent (agents consume space), dynamic, non-deterministic (seeded) | Yes (see the model) |
 | Obstacles; hindrances and affordances | Buildings, fences, water; light, people, roadways, bins, sealed soil, bait / food, walls, old sheds, soil |
 | **Primary**: environment designer | *Design* (rules + click to place), *Compare two* (manual, with lineage), *Evolve* (epochs × variations, chart), *Gallery* |
-| **Secondary**: real data, 3D + time | Google Photorealistic 3D Tiles; NYC footprints (surveyed heights) and elevation points; 311 rodent calls, DOHMH rodent inspections and restaurant violations, DOB shed permits (2023 and today), DSNY litter baskets; MTA hourly ridership; the *Real data* tab charts three years of reports by month |
+| **Secondary**: real data, 3D + time | Axonometric drawn from NYC footprints (surveyed heights) and elevation points; 311 rodent calls, DOHMH rodent inspections and restaurant violations, DOB shed permits (2023 and today), DSNY litter baskets; MTA hourly ridership; the *Real data* tab charts three years of reports by month |
 
 ## Data
 
@@ -41,7 +41,6 @@ All fetched on 2026-11-18 for the box W −73.9670, E −73.9500, S 40.8030, N 4
 | Litter baskets (and which are "Better Bins") | DSNY Litter Basket Inventory (`8znf-7b2c`) |
 | Sidewalk sheds active on 2026-11-18 and 2023-07-01 | DOB NOW: Build – Approved Permits (`rbx6-tga4`), work type Sidewalk Shed |
 | People by hour | MTA hourly ridership at 116 St–Columbia University, October 2025 (from our `20261117_eyes` prototype) |
-| 3D city | Google Photorealistic 3D Tiles, through Cesium ion (token limited to this site) |
 
 **Modelled, not measured:** street-light poles (every 32 m); how much food a building sets out (from its floor area); how much of it rats can reach; the Empire Bin area (west of Morningside Park); rat behaviour constants (`src/sim/config.js`).
 
@@ -61,4 +60,4 @@ Open `index.html` through a web server from the repository root (for example `py
 
 ## Files
 
-`index.html`, `style.css`; `src/sim/` (`city.js` the grid from the data, `sim.js` agents and time, `design.js` the genome, `evaluate.js` runs and evolution, `path.js` planning, `worker.js`); `src/render/` (`globe.js` Cesium + Google tiles, `plan.js` 2D maps); `src/ui/` (`main.js`, `designer.js`); `tools/build_place.mjs`; `tests/`.
+`index.html`, `style.css`; `src/sim/` (`city.js` the grid from the data, `sim.js` agents and time, `design.js` the genome, `evaluate.js` runs and evolution, `path.js` planning, `worker.js`); `src/render/` (`axo.js` the axonometric drawing (three.js), `plan.js` 2D maps, `icons.js`); `src/ui/` (`main.js`, `designer.js`); `tools/build_place.mjs`; `tests/`.

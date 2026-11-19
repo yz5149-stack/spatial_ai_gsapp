@@ -4,7 +4,7 @@
 
 **Spatial idea.** Rats are the most honest users of a street: they go exactly where its design leaves food, shelter and darkness. A model of rats that only know what they have smelled, seen and remembered turns a neighbourhood into a map of its design failures, and lets us test changes (bins, collection times, lights, sealed tree pits, see-through sidewalk sheds, bait stations, inspectors) before anyone builds them.
 
-**Place.** Manhattanville and 125th Street, New York: 1.01 km × 1.22 km from Broadway to St Nicholas Park, about W 120th to W 133rd St (Columbia's Manhattanville campus, the General Grant and Manhattanville Houses, the 125th Street shops). Rendered on Google Photorealistic 3D Tiles; simulated on a grid of 6 m cells.
+**Place.** 125th Street and Amsterdam Avenue, Harlem: about 650 × 700 m from Broadway to Morningside Avenue, W 122nd to W 129th St (the General Grant Houses, the 125th Street shops). Drawn as an axonometric from the surveyed footprints, roof heights and ground elevations; simulated on a grid of 6 m cells.
 
 ---
 
@@ -49,7 +49,7 @@ The first work orders are the **real** 311 rodent calls of the two weeks before 
 
 1. **Grid**: cell (x, y), x east, y south.
 2. **Metric**: metres east and south of the map's north-west corner; elevation in metres above sea level (NAVD88, NYC survey).
-3. **Geographic**: longitude, latitude (WGS84); in 3D, ellipsoid height = elevation + the local geoid offset, calibrated against the Google tiles.
+3. **Geographic**: longitude, latitude (WGS84).
 4. **Street**: "W 125th St, near Amsterdam Av" (nearest named way and the nearest other one), and street corners.
 5. **Landmark-relative (each agent's own)**: a rat's food places relative to its burrow; an inspector's hotspots by address.
 

@@ -1,4 +1,4 @@
-// The page: three parts. 01 Watch: the week on 125th Street in a point cloud, live. 02 Design: the
+// The page: three parts. Watch: the week on 125th Street, drawn as an axonometric, live. 02 Design: the
 // environment designer. 03 Data: the real data behind it.
 
 import { CONFIG } from '../sim/config.js';
@@ -14,8 +14,8 @@ const DATA_URL = new URL('../../data/manhattanville.json', import.meta.url).href
 
 const state = {
   city: null, sim: null, scenario: 'now', design: makeDesign('now'),
-  speed: 40, paused: false, started: false, acc: 0, last: 0,
-  layer: 'activity', tool: 'select', view: 'auto', slowmo: true, chaseUntil: 0, chaser: null, selected: null,
+  speed: 'story', paused: false, trails: true, started: false, acc: 0, last: 0,
+  layer: 'none', tool: 'select', view: 'auto', slowmo: true, chaseUntil: 0, chaser: null, selected: null,
   page: 'watch', lastPanel: 0, cloud: null, dplan: null, preview: null,
 };
 
@@ -34,7 +34,9 @@ function restart(scenario = state.scenario) {
   state.scenario = scenario; $('scenario').value = scenario;
   state.sim = newSim(state.city, designFor(scenario));
   state.selected = null; feedSeq = -1;
-  $('feed').innerHTML = '<li class="empty">Rats leave their burrows at 6:30 pm. The patrol starts at 7 pm.</li>';
+  $('feed').innerHTML = '<li class="empty">The patrol starts at 7 pm.</li>';
+  // the first night starts in the evening, just before the rats come out
+  while (minuteOfDay(state.sim) !== 18 * 60 + 20) stepSim(state.sim);
   state.cloud?.invalidate();
   drawDesignPlan();
   panels();
@@ -45,17 +47,23 @@ function loop(now) {
   const sim = state.sim;
   if (sim && state.started && !state.paused) {
     const chasing = sim.inspectors.find((i) => i.mode === 'chase');
-    if (chasing) { state.chaser = chasing; state.chaseUntil = now + 2200; }
-    const slow = state.slowmo && (chasing || now < state.chaseUntil);
-    state.acc += (dt / 1000) * (slow ? Math.min(state.speed, 2.5) : state.speed);
+    if (chasing) { state.chaser = chasing; state.chaseUntil = now + 2600; }
+    // Story: one minute of the night every second or so; chases in slow motion; the day skipped
+    let speed = state.speed;
+    if (speed === 'story') {
+      const h = hourOf(sim);
+      if (h >= 6.6 && h < 18.3) { while (minuteOfDay(sim) !== 18 * 60 + 20 && sim.t < sim.cfg.days * 1440) stepSim(sim); banner('The day passes. Bags go out again tonight.', 2500); }
+      speed = chasing || now < state.chaseUntil ? 0.35 : 1.6;
+    } else if (chasing || now < state.chaseUntil) speed = Math.min(speed, 0.6);
+    state.acc += (dt / 1000) * speed;
     let n = 0;
     while (state.acc >= 1 && n < 900) { stepSim(sim); state.acc -= 1; n++; }
     if (sim.t >= sim.cfg.days * 1440) { state.paused = true; $('btn-pause').textContent = '▶'; flash('The week is over. Restart, or change the rules.'); }
   }
   if (sim && state.page === 'watch' && state.cloud) {
     const follow = state.view === 'auto' && now < state.chaseUntil && state.chaser ? state.chaser : null;
-    const frac = state.speed <= 40 || follow ? state.acc : 1;
-    try { state.cloud.frame(sim, { layer: state.layer, selected: state.selected, now, hourFrac: hourOf(sim), frac, follow }); } catch (err) { console.error(err); }
+    const frac = state.speed === 'story' || state.speed <= 3 || follow ? state.acc : 1;
+    try { state.cloud.frame(sim, { layer: state.layer, selected: state.selected, now, hourFrac: hourOf(sim), frac, follow, trails: state.trails }); } catch (err) { console.error(err); }
   }
   if (sim && now - state.lastPanel > 200) { panels(); state.lastPanel = now; }
   requestAnimationFrame(loop);
@@ -83,47 +91,28 @@ function panels() {
   const m = minuteOfDay(sim);
   $('clock').textContent = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   const night = dayOf(sim) + (hourOf(sim) < 12 ? 0 : 1);
-  $('day').textContent = `NIGHT ${Math.max(1, night)} OF ${sim.cfg.days}`;
+  $('day').textContent = `Night ${Math.max(1, night)} of ${sim.cfg.days}`;
   $('phase').textContent = phaseText(sim);
   band($('tl-bags'), sim.design.setOut, sim.design.pickup === 'night' ? 3 : 9);
   band($('tl-rats'), sim.cfg.rat.activeFrom, sim.cfg.rat.activeTo);
   band($('tl-patrol'), sim.cfg.inspector.shift[0], sim.cfg.inspector.shift[1]);
-  $('tl-now').style.left = `calc(48px + (100% - 48px) * ${pct24(hourOf(sim)) / 100})`;
+  $('tl-now').style.left = `calc(66px + (100% - 66px) * ${pct24(hourOf(sim)) / 100})`;
   $('n-rats').textContent = sim.rats.filter((r) => r.alive).length;
-  $('n-spot').textContent = sim.totals.spotted;
   $('n-caught').textContent = sim.totals.caught;
   $('n-missed').textContent = sim.totals.missed;
-  cast(sim); feed(sim);
+  feed(sim);
   agentCard(sim, state.selected);
 }
 
-// who is out, and what they are doing; click to follow
-function cast(sim) {
-  const items = [];
-  for (const ins of sim.inspectors) {
-    const on = ins.mode !== 'off' && ins.mode !== 'done';
-    items.push({ a: ins, cls: `ins${ins.mode === 'chase' ? ' chase' : ''}`, name: ins.name, st: on ? INSPECTOR_MODES[ins.mode] : 'Off duty until 7 pm', stat: `${ins.stats.caught} caught · ${ins.stats.missed} missed` });
-  }
-  const out = sim.rats.filter((r) => r.alive && r.mode !== 'home');
-  const home = sim.rats.filter((r) => r.alive && r.mode === 'home').length;
-  out.sort((a, b) => (b.mode === 'flee') - (a.mode === 'flee') || b.distance - a.distance);
-  for (const r of out.slice(0, 5)) items.push({ a: r, cls: `rat${r.mode === 'flee' ? ' flee' : ''}`, name: `Rat #${r.id}`, st: RAT_MODES[r.mode], stat: `fed ${Math.round(Math.min(1, r.fed) * 100)}%` });
-  const key = items.map((i) => `${i.a.id}${i.st}${i.stat}`).join('|') + out.length + home + (state.selected?.id ?? '');
-  if (cast.key === key) return; cast.key = key;
-  $('cast').innerHTML = items.map((i, k) => `<li class="${i.cls}${state.selected === i.a ? ' sel' : ''}" data-k="${k}"><i></i><span>${i.name}<span class="st">${i.st}</span></span><small>${i.stat}</small></li>`).join('')
-    + `<li class="rat" style="cursor:default"><i></i><span>${out.length} rats out<span class="st">${home} in their burrows</span></span><small></small></li>`;
-  cast.items = items;
-}
-
-const KIND = { spot: ['SPOTTED', 'k-spot'], caught: ['CAUGHT', 'k-caught'], missed: ['GOT AWAY', 'k-missed'], dodge: ['DODGED', 'k-dodge'], bag: ['TRASH', 'k-bag'] };
+const KIND = { spot: ['Spotted', 'k-spot'], caught: ['Caught', 'k-caught'], missed: ['Got away', 'k-missed'], bag: ['Trash', 'k-bag'] };
 let feedSeq = -1;
 function feed(sim) {
   if (sim.fxSeq === feedSeq) return;
   feedSeq = sim.fxSeq;
-  const items = sim.fx.filter((f) => KIND[f.kind]).slice(-16).reverse();
+  const items = sim.fx.filter((f) => KIND[f.kind]).slice(-12).reverse();
   if (!items.length) return;
   $('feed').innerHTML = items.map((f) => {
-    const [label, cls] = f.burrow ? ['BURROW', 'k-burrow'] : KIND[f.kind];
+    const [label, cls] = f.burrow ? ['Burrow', 'k-burrow'] : KIND[f.kind];
     const ins = sim.inspectors.find((i) => i.id === f.who)?.name ?? '';
     const what = { spot: `${ins} spots a rat`, caught: `${ins} catches it`, missed: f.burrow ? 'Into its burrow — burrow found' : `It gets away from ${ins}`, dodge: 'The rat dodges', bag: 'You dropped a trash bag' }[f.kind];
     const m = (sim.cfg.startHour * 60 + f.t) % 1440;
@@ -145,7 +134,7 @@ function agentCard(sim, a) {
   const city = sim.city; const loc = describeLocation(city, a.cell); const facts = [];
   if (a.kind === 'rat') {
     const col = sim.colonies[a.colony];
-    $('a-dot').style.background = 'var(--rat)'; $('a-name').textContent = `RAT #${a.id}`;
+    $('a-dot').style.background = 'var(--rat)'; $('a-name').textContent = `Rat #${a.id}`;
     $('a-mode').textContent = a.alive ? (a.deathAt >= 0 ? `${RAT_MODES[a.mode]} · poisoned` : RAT_MODES[a.mode]) : 'Dead';
     facts.push(['GOAL', 'Eat a night\'s food, get home before light']);
     facts.push(['FED', `${Math.round(Math.min(1, a.fed / sim.cfg.rat.need) * 100)}% of tonight's need`]);
@@ -157,7 +146,7 @@ function agentCard(sim, a) {
     if (a.path && a.targetKind) facts.push(['HEADING', `${{ smell: 'food it smells', memory: 'a spot it remembers', explore: 'new ground', home: 'its burrow', cover: 'cover' }[a.targetKind]} · ${metres(a.path.length - a.pi)} to go`]);
     facts.push(['RAN', metres(a.distance)]);
   } else {
-    $('a-dot').style.background = 'var(--cyan)'; $('a-name').textContent = a.name.toUpperCase();
+    $('a-dot').style.background = 'var(--gold)'; $('a-name').textContent = a.name;
     $('a-mode').textContent = INSPECTOR_MODES[a.mode] ?? a.mode;
     facts.push(['GOAL', 'Answer 311 calls; find and treat burrows']);
     facts.push(['NOW', a.mode === 'chase' ? 'Running after a rat' : (a.job?.why ?? '—')]);
@@ -187,7 +176,7 @@ function pick(cell) {
   const sim = state.sim;
   if (cell < 0 || !sim) return;
   if (state.tool === 'bag') { dropBag(cell); return; }
-  state.selected = nearestAgent(sim, cell); cast.key = null;
+  state.selected = nearestAgent(sim, cell);
   panels();
 }
 function dropBag(cell) {
@@ -237,10 +226,12 @@ function showPage(p) {
 function wire() {
   document.querySelectorAll('.pages [data-page]').forEach((b) => b.addEventListener('click', () => showPage(b.dataset.page)));
   document.querySelectorAll('[data-speed]').forEach((b) => b.addEventListener('click', () => {
-    state.speed = Number(b.dataset.speed);
+    state.speed = b.dataset.speed === 'story' ? 'story' : Number(b.dataset.speed);
     document.querySelectorAll('[data-speed]').forEach((o) => o.classList.toggle('on', o === b));
   }));
   $('btn-pause').addEventListener('click', () => { state.paused = !state.paused; $('btn-pause').textContent = state.paused ? '▶' : '❚❚'; });
+  $('trails').addEventListener('change', (e) => { state.trails = e.target.checked; });
+  $('real').addEventListener('change', (e) => { state.layer = e.target.checked ? 'real' : 'none'; });
   $('btn-restart').addEventListener('click', () => restart());
   $('btn-skip').addEventListener('click', () => {
     const sim = state.sim; let n = 0;
@@ -248,25 +239,19 @@ function wire() {
     panels();
   });
   $('scenario').addEventListener('change', (e) => restart(e.target.value));
-  document.querySelectorAll('[data-layer]').forEach((b) => b.addEventListener('click', () => {
-    state.layer = b.dataset.layer;
-    document.querySelectorAll('[data-layer]').forEach((o) => o.classList.toggle('on', o === b));
-  }));
   document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
     const v = b.dataset.view;
-    if (v === 'follow' && !state.selected) {
+    if (v === 'follow' && !state.selected) { // (no button for this any more)
       const sim = state.sim;
       state.selected = sim.inspectors.find((i) => i.mode !== 'off' && i.mode !== 'done') ?? sim.rats.find((r) => r.alive && r.mode !== 'home') ?? null;
       if (!state.selected) { flash('Nobody is out yet. Press NEXT NIGHT.'); return; }
     }
     setView(v);
   }));
-  $('slowmo').addEventListener('change', (e) => { state.slowmo = e.target.checked; });
   $('bag-ico').getContext('2d').drawImage(bagIcon(true), 0, 0);
   $('btn-bag').addEventListener('click', () => setBagTool(state.tool !== 'bag'));
   $('feed').addEventListener('click', (e) => { const li = e.target.closest('li[data-cell]'); if (li) state.cloud?.focusOn(Number(li.dataset.cell)); });
-  $('cast').addEventListener('click', (e) => { const li = e.target.closest('li[data-k]'); if (!li) return; const it = cast.items?.[Number(li.dataset.k)]; if (it) { state.selected = it.a; setView('follow'); cast.key = null; } });
-  $('a-close').addEventListener('click', () => { state.selected = null; if (state.view === 'follow') setView('auto'); });
+  $('a-close').addEventListener('click', () => { state.selected = null; });
   $('dplan').addEventListener('click', (e) => { const c = state.dplan.cellAt(e.clientX, e.clientY); if (designer.handlePick(c)) drawDesignPlan(); });
   $('btn-start').addEventListener('click', () => { $('screen-start').hidden = true; state.started = true; });
   window.addEventListener('keydown', (e) => {
@@ -286,8 +271,8 @@ async function boot() {
   wire();
   restart('now');
   try {
-    const { makeCloud } = await import('../render/cloud.js');
-    state.cloud = makeCloud($('cloud'), state.city, { onPick: (c) => pick(c) });
+    const { makeAxo } = await import('../render/axo.js?v=7');
+    state.cloud = makeAxo($('cloud'), state.city, { onPick: (c) => pick(c) });
   } catch (err) {
     console.error(err);
     $('cloud-fallback').hidden = false;
