@@ -41,7 +41,7 @@ export const CONFIG = {
     colonies: 16,
     startPerColony: [3, 6],
     speed: 3,               // cells per tick while foraging (18 m a minute, with stops)
-    fleeSpeed: 7,           // cells per tick when running from someone (about 0.8 m/s)
+    fleeSpeed: 6,           // cells per tick when running from someone (about 0.8 m/s)
     smell: 18,              // cells: how far it smells food along open air (108 m)
     sight: 3,               // cells it sees around it (rats are near-sighted)
     alert: 6,               // cells: it notices a person with a flashlight this close (sees, hears)
@@ -75,7 +75,7 @@ export const CONFIG = {
     beamDeg: 70,            // width of the beam
     near: 2,                // cells it notices all around, without the beam
     spotChance: 0.8,        // chance to spot a rat in the beam each tick (half as much in the dark part of the beam, under old sheds)
-    catchChance: 0.6,       // chance to catch it (trap, net) once within reach
+    catchChance: 0.7,       // chance to catch it (trap, net) once within reach
     reach: 1.5,             // cells
     chaseTicks: 6,          // gives up after this long
     signSeen: 10,           // sign level that counts as evidence (droppings, rub marks, gnawing)
