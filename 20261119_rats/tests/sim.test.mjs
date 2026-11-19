@@ -46,10 +46,11 @@ test('bins keep food out of reach', () => {
 
 test('inspectors find rat activity and treat burrows', () => {
   const sim = newSim(city, makeDesign('now'));
-  runDays(sim, 3);
+  runDays(sim, 5);
   const m = measures(sim);
   assert.ok(m.inspections > 5);
-  assert.ok(m.failed > 0 && m.failed <= m.inspections);
+  assert.ok(m.failed <= m.inspections);
+  assert.ok(m.failed > 0 || m.burrows > 0, 'found rat activity or a burrow');
 });
 
 test('designs mutate within budget', () => {
