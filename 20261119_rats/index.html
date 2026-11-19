@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rat City</title>
+  <meta name="description" content="Rats, inspectors and trash in real Morningside Heights and West Harlem, on Google's photorealistic 3D city, with an environment designer.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.135.0/Build/Cesium/Widgets/widgets.css">
+  <link rel="stylesheet" href="style.css?v=1">
+  <script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.135.0/Build/Cesium/';</script>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.135.0/Build/Cesium/Cesium.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <h1>Rat City</h1>
+      <p>Morningside Heights &amp; West Harlem · Spatial AI, Columbia GSAPP · Ryan Fu, Lu Liu, Yifan Zhao</p>
+    </div>
+    <div class="clockbox"><b id="clock">Day 1, 5:00 pm</b><span id="phase">Evening: bags go out at 8 pm</span></div>
+    <div class="controls">
+      <label class="sel">Rules
+        <select id="scenario">
+          <option value="y2022">2022 rules (bags out 4 pm, no bins)</option>
+          <option value="now" selected>Now (bags 8 pm, bins + Empire Bins)</option>
+          <option value="design">Your design</option>
+        </select>
+      </label>
+      <div class="seg" id="speeds">
+        <button data-speed="10">1×</button><button data-speed="60" class="on">6×</button><button data-speed="300">30×</button><button data-speed="1200">120×</button>
+      </div>
+      <button id="btn-pause">Pause</button>
+      <button id="btn-skip" title="Run to the next 7 pm">Next night</button>
+      <button id="btn-restart">Restart week</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage">
+      <div id="globe"></div>
+      <div id="globe-fallback" class="fallback" hidden>
+        <p>The 3D city could not load here (it needs WebGL and access to Cesium ion). The 2D map on the right still runs the whole simulation.</p>
+      </div>
+      <div class="stage-bar">
+        <div class="seg" id="views">
+          <button data-view="city" class="on">Whole area</button><button data-view="follow">Follow selected</button><button data-view="street">Street level</button>
+        </div>
+        <div class="seg" id="layers">
+          <button data-layer="activity" class="on">Rat paths tonight</button><button data-layer="signs">Signs</button><button data-layer="real">Real reports</button><button data-layer="light">Light</button><button data-layer="none">None</button>
+        </div>
+        <div class="seg" id="tools">
+          <button data-tool="select" class="on">Select</button><button data-tool="bag">Drop a trash bag</button>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="toast hide" id="toast"></div>
+    </section>
+
+    <aside class="side">
+      <div class="card numbers">
+        <div><b id="n-rats">0</b><span>rats</span></div>
+        <div><b id="n-fed">–</b><span>fed last night</span></div>
+        <div><b id="n-births">0</b><span>born</span></div>
+        <div><b id="n-deaths">0</b><span>died</span></div>
+        <div><b id="n-sight">0</b><span>seen by people</span></div>
+        <div><b id="n-insp">0</b><span>inspections</span></div>
+      </div>
+
+      <div class="card">
+        <canvas id="plan" class="plan"></canvas>
+        <div class="plan-cap"><span id="plan-cap">Click a rat or an inspector to see what it knows.</span></div>
+      </div>
+
+      <div class="card agent" id="agent-card">
+        <div class="agent-head"><b id="a-name">Nobody selected</b><span id="a-mode"></span></div>
+        <div class="agent-body">
+          <canvas id="mind" class="mind"></canvas>
+          <dl id="a-facts"></dl>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>What happened</h3>
+        <ul id="log" class="log"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <section class="designer" id="designer">
+    <div class="tabs">
+      <button data-tab="edit" class="on">Design</button>
+      <button data-tab="compare">Compare two</button>
+      <button data-tab="evolve">Evolve</button>
+      <button data-tab="gallery">Gallery</button>
+      <button data-tab="data">Real data</button>
+      <span class="budget"><span id="budget-text">Budget</span><i><em id="budget-bar"></em></i></span>
+    </div>
+
+    <div class="pane" data-pane="edit">
+      <div class="col">
+        <h3>City rules</h3>
+        <label>Residential bags go out <select id="d-setout"><option value="16">4 pm (before 2023)</option><option value="18">6 pm</option><option value="20">8 pm (now)</option><option value="22">10 pm</option></select></label>
+        <label>Collection <select id="d-pickup"><option value="morning">Morning (6–11 am)</option><option value="night">Night shift (12–4 am)</option></select></label>
+        <label>Trash in bins <select id="d-binning"><option value="none">No bin rule</option><option value="small">Buildings of 1–9 units (2024)</option><option value="cb9">+ Empire Bins west of Morningside Park (2025)</option><option value="all">Every building</option></select></label>
+        <label>Sidewalk sheds <select id="d-shedset"><option value="now">Active today (DOB permits)</option><option value="2023">Active in July 2023</option></select></label>
+        <label>Inspectors <select id="d-inspectors"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></label>
+      </div>
+      <div class="col">
+        <h3>Place things (click the map or the city)</h3>
+        <div class="seg wrap" id="d-tools">
+          <button data-dtool="station">Bait station</button>
+          <button data-dtool="light">Street light</button>
+          <button data-dtool="guard">Seal a tree pit / yard</button>
+          <button data-dtool="bin">Bin a building's trash</button>
+          <button data-dtool="shed">Shed: old → see-through → removed</button>
+          <button data-dtool="erase">Remove</button>
+        </div>
+        <p class="hint" id="d-summary"></p>
+        <div class="row">
+          <button id="d-eval" class="primary">Evaluate (a week, 2 runs)</button>
+          <button id="d-play">Play this design</button>
+          <button id="d-reset">Start from “Now”</button>
+          <button id="d-random">Random design</button>
+        </div>
+      </div>
+      <div class="col result" id="d-result"><p class="hint">Evaluate to see how many rats are left after a week, how many were seen, and what it costs.</p></div>
+    </div>
+
+    <div class="pane" data-pane="compare" hidden>
+      <p class="hint">Two variations of your design run the same week. Choose the one you prefer; two new variations are made from it. (Manual design, “choose your own adventure”.)</p>
+      <div class="ab">
+        <div class="variant" id="var-a"></div>
+        <div class="variant" id="var-b"></div>
+      </div>
+      <div class="row"><button id="ab-start" class="primary">Make two variations</button><span id="ab-lineage" class="hint"></span></div>
+    </div>
+
+    <div class="pane" data-pane="evolve" hidden>
+      <div class="row">
+        <label>Goal <select id="ev-goal"><option value="civic">Fewer rats (city)</option><option value="paradise">Rat paradise (worst street)</option></select></label>
+        <label>Epochs <select id="ev-epochs"><option>4</option><option selected>6</option><option>10</option></select></label>
+        <label>Variations per epoch <select id="ev-pop"><option>3</option><option selected>4</option><option>6</option></select></label>
+        <button id="ev-run" class="primary">Run evolution</button>
+        <button id="ev-play" disabled>Play the best</button>
+        <button id="ev-save" disabled>Save to gallery</button>
+      </div>
+      <div class="evolve">
+        <canvas id="ev-chart" class="chart"></canvas>
+        <div id="ev-best" class="hint">Each epoch makes variations of the best design so far, runs each for a week, and keeps the best.</div>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="gallery" hidden>
+      <div class="gallery" id="gallery"></div>
+    </div>
+
+    <div class="pane" data-pane="data" hidden>
+      <div class="evolve">
+        <canvas id="real-chart" class="chart"></canvas>
+        <div class="hint" id="real-notes"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="start" id="screen-start">
+    <div class="start-card">
+      <h2>Rat City</h2>
+      <p>Real streets, buildings and trash schedules of Morningside Heights and West Harlem, on Google's 3D city. <b>Rats</b> come out after dark: they smell food along the open air, run along walls, keep out of light and away from people, and remember where they ate. <b>Inspectors</b> come by day: they answer 311 calls, look for droppings and gnawing, follow the trail to the burrow, bait it and seal it.</p>
+      <p>The colonies start where the city's own inspectors found rats in the last three years. You can drop a trash bag and watch them come, compare the rules of 2022 with today's, and design the street yourself.</p>
+      <button id="btn-start" class="primary">Start at 5 pm</button>
+      <p class="fine">3D tiles: Google, via Cesium ion. Data: NYC Open Data (311, DOHMH rodent and restaurant inspections, DOB shed permits, DSNY baskets, building footprints, elevation), MTA ridership, OpenStreetMap.</p>
+    </div>
+  </div>
+
+  <script type="module" src="src/ui/main.js?v=1"></script>
+</body>
+</html>
