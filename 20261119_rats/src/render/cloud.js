@@ -43,7 +43,7 @@ export function makeCloud(el, city, { onPick = null } = {}) {
   scene.fog = new THREE.FogExp2(0x04060a, 0.00055);
   const camera = new THREE.PerspectiveCamera(42, 1, 1, 8000);
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 20; controls.maxDistance = 2600;
+  controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 45; controls.maxDistance = 2600;
 
   const { W, H, cellM } = city;
   const world = new THREE.Group(); world.rotation.y = GRID_TURN; scene.add(world);
@@ -463,10 +463,12 @@ export function makeCloud(el, city, { onPick = null } = {}) {
       const tp = worldPos(gx, gy, 2);
       const delta = tp.clone().sub(controls.target);
       controls.target.add(delta.multiplyScalar(0.18));
-      const dir = camera.position.clone().sub(controls.target);
-      const want = follow ? 110 : 150;
-      const d = dir.length(); const nd = d + (want - d) * 0.06;
-      camera.position.copy(controls.target).add(dir.normalize().multiplyScalar(nd));
+      // keep looking down at about 45 degrees, from a comfortable distance
+      const sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+      const want = follow ? 140 : 170;
+      sph.radius += (want - sph.radius) * 0.06;
+      sph.phi += (0.78 - sph.phi) * 0.06;
+      camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(sph));
       following = true;
     } else following = false;
     controls.update();
