@@ -7,15 +7,15 @@
 //
 // Everything runs whole simulated weeks in Web Workers.
 
-import { makeDesign, cloneDesign, designCost, describeDesign, mutate } from '../sim/design.js';
-import { evolve } from '../sim/evaluate.js';
-import { thumbnail } from '../render/plan.js';
+import { makeDesign, cloneDesign, designCost, describeDesign, mutate } from '../sim/design.js?v=13';
+import { evolve } from '../sim/evaluate.js?v=13';
+import { thumbnail } from '../render/plan.js?v=13';
 
 function makePool(dataUrl) {
   const size = Math.max(1, Math.min(6, (navigator.hardwareConcurrency || 4) - 1));
   const workers = []; const queue = []; let seq = 0; const waiting = new Map();
   for (let k = 0; k < size; k++) {
-    const w = new Worker(new URL('../sim/worker.js', import.meta.url), { type: 'module' });
+    const w = new Worker(new URL('../sim/worker.js?v=13', import.meta.url), { type: 'module' });
     w.busy = false;
     w.onmessage = (e) => { const job = waiting.get(e.data.id); waiting.delete(e.data.id); w.busy = false; if (e.data.error) job.reject(new Error(e.data.error)); else job.resolve(e.data.m); next(); };
     workers.push(w);

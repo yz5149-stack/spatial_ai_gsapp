@@ -6,8 +6,8 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { layerValues } from './plan.js';
-import { S, G } from '../sim/city.js';
+import { layerValues } from './plan.js?v=13';
+import { S, G } from '../sim/city.js?v=13';
 
 const GRID_TURN = (29 * Math.PI) / 180;   // Manhattan's grid runs 29° east of true north: turn it square
 const PAPER = 0xf3f2ee;

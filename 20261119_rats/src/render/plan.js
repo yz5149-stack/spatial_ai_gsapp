@@ -1,7 +1,7 @@
 // 2D plans on a canvas: the whole area (with a layer and every agent), small maps for comparing
 // designs, and the "mind" of one agent (what it has seen, what it remembers, where it went).
 
-import { G, S } from '../sim/city.js';
+import { G, S } from '../sim/city.js?v=13';
 
 const COL = {
   rat: [255, 107, 61], insp: [71, 184, 255], food: [255, 211, 77], bin: [95, 211, 138], station: [197, 139, 255],

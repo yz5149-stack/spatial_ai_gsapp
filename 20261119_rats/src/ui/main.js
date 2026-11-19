@@ -2,13 +2,13 @@
 // a map that starts dark and fills in as they explore and tell each other. "What if…?" (the environment
 // designer) and "About the data" open as drawers over it.
 
-import { CONFIG, seasonConfig, SEASONS } from '../sim/config.js';
-import { buildCity, describeLocation } from '../sim/city.js';
-import { newSim, stepSim, hourOf, dayOf, minuteOfDay, RAT_MODES, INSPECTOR_MODES, placeName, log, fx, inShift } from '../sim/sim.js';
-import { makeDesign, cloneDesign } from '../sim/design.js';
-import { makePlan, drawMind, makeRatMap } from '../render/plan.js?v=11';
-import { bagIcon } from '../render/icons.js';
-import { makeDesigner } from './designer.js?v=11';
+import { CONFIG, seasonConfig, SEASONS } from '../sim/config.js?v=13';
+import { buildCity, describeLocation } from '../sim/city.js?v=13';
+import { newSim, stepSim, hourOf, dayOf, minuteOfDay, RAT_MODES, INSPECTOR_MODES, placeName, log, fx, inShift } from '../sim/sim.js?v=13';
+import { makeDesign, cloneDesign } from '../sim/design.js?v=13';
+import { makePlan, drawMind, makeRatMap } from '../render/plan.js?v=13';
+import { bagIcon } from '../render/icons.js?v=13';
+import { makeDesigner } from './designer.js?v=13';
 
 const $ = (id) => document.getElementById(id);
 const DATA_URL = new URL('../../data/manhattanville.json', import.meta.url).href;
@@ -328,7 +328,7 @@ async function boot() {
   wire();
   restart('now');
   try {
-    const { makeAxo } = await import('../render/axo.js?v=11');
+    const { makeAxo } = await import('../render/axo.js?v=13');
     state.cloud = makeAxo($('cloud'), state.city, { onPick: (c) => pick(c) });
   } catch (err) {
     console.error(err);

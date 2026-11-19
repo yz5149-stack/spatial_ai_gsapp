@@ -17,7 +17,7 @@
 //   sheds                     active sidewalk sheds (DOB permits), as cells along the building front
 //   real                      the real rat reports, as cells, and a smoothed map of them
 
-import { makeRng } from './rng.js';
+import { makeRng } from './rng.js?v=13';
 
 export const G = { OPEN: 0, BLDG: 1, WATER: 2, FENCE: 3 };
 export const S = { YARD: 0, LAWN: 1, AVENUE: 2, STREET: 3, PATH: 4, STEPS: 5, PLAZA: 6, WOODS: 7 };

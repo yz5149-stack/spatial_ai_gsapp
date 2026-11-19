@@ -1,9 +1,9 @@
 // Judging a design: run the week on a few seeds and average the measures.
 // Evolution: keep the best design of each epoch and breed variations of it.
 
-import { newSim, runDays, measures, score } from './sim.js';
-import { mutate, cloneDesign, designCost } from './design.js';
-import { seasonConfig } from './config.js';
+import { newSim, runDays, measures, score } from './sim.js?v=13';
+import { mutate, cloneDesign, designCost } from './design.js?v=13';
+import { seasonConfig } from './config.js?v=13';
 
 export const OBJECTIVES = {
   civic: { name: 'Fewer rats', better: 'lower', fn: (m) => score(m) },

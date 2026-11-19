@@ -3,7 +3,7 @@
 // One planner per grid size is shared by every agent: its arrays are reused between searches (a
 // stamp marks which entries belong to the current search), so planning allocates nothing.
 
-import { DIRS8 } from './city.js';
+import { DIRS8 } from './city.js?v=13';
 
 export function makePlanner(W, H) {
   const N = W * H;

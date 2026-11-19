@@ -1,8 +1,8 @@
 // A Web Worker that evaluates designs off the main thread. It loads the place once and builds the city.
 
-import { CONFIG } from './config.js';
-import { buildCity } from './city.js';
-import { evaluateDesign } from './evaluate.js';
+import { CONFIG } from './config.js?v=13';
+import { buildCity } from './city.js?v=13';
+import { evaluateDesign } from './evaluate.js?v=13';
 
 let cityP = null;
 self.onmessage = async (e) => {

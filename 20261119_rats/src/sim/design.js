@@ -15,7 +15,7 @@
 //            contra     birth-control bait (as in the city's 2024 pilot): fewer young
 //            dryIce     burrows treated with dry ice / carbon monoxide: more rats die when a burrow is treated
 
-import { makeRng } from './rng.js';
+import { makeRng } from './rng.js?v=13';
 
 export const COST = { bin: 0.5, light: 2, guard: 0.5, station: 1, shedLight: 3, shedGone: 5, inspector: 8, night: 12, cat: 1, contra: 6, dryIce: 4 };
 export const LIMITS = { bins: 40, lights: 16, guards: 30, stations: 16 };

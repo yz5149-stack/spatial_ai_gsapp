@@ -9,10 +9,10 @@
 // The city sets out food every night (trash bags, restaurant waste, litter baskets) on its own
 // schedule; the design (src/sim/design.js) changes that schedule, the bins, the lights, the sheds.
 
-import { makeRng } from './rng.js';
-import { DIRS8, S, nearestWhere, splatLight, short } from './city.js';
-import { makePlanner } from './path.js';
-import { isBinned } from './design.js';
+import { makeRng } from './rng.js?v=13';
+import { DIRS8, S, nearestWhere, splatLight, short } from './city.js?v=13';
+import { makePlanner } from './path.js?v=13';
+import { isBinned } from './design.js?v=13';
 
 const DAY = 1440;
 export const RAT_MODES = { home: 'In the burrow', forage: 'Foraging', eat: 'Eating', return: 'Heading home', flee: 'Running away', hide: 'Hiding', dead: 'Dead' };
