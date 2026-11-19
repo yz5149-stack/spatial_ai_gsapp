@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Rat Run 125</title>
+  <meta name="description" content="Rat Run 125: play a rat on the real 125th Street & Amsterdam Avenue at night. Grab trash, dodge flashlights, cars and cats, and stash it before dawn.">
+  <meta name="theme-color" content="#0b0920">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="game.css?v=1">
+</head>
+<body>
+  <canvas id="view"></canvas>
+
+  <!-- HUD -->
+  <div class="hud" id="hud" hidden>
+    <div class="hud-left">
+      <div class="pill night"><span data-t="night">Night</span> <b id="h-night">1</b></div>
+      <div class="pill score"><b id="h-score">0</b> <span data-t="pts">pts</span></div>
+    </div>
+    <div class="hud-mid">
+      <div class="clock"><b id="h-clock">19:00</b><i class="clockbar"><em id="h-clockbar"></em></i></div>
+      <div class="quota"><span data-t="stash">Stash</span> <b id="h-bank">0</b>/<b id="h-quota">12</b><i class="qbar"><em id="h-qbar"></em></i></div>
+    </div>
+    <div class="hud-right">
+      <div class="hearts" id="h-hearts"></div>
+      <button class="ico" id="b-mute" title="Sound (M)">♪</button>
+      <button class="ico" id="b-pause" title="Pause (P)">❚❚</button>
+    </div>
+  </div>
+  <div class="cheeks" id="cheeks" hidden>
+    <div class="pips" id="h-carry"></div>
+    <div class="stam"><em id="h-stam"></em></div>
+  </div>
+  <canvas id="mini" class="mini" hidden></canvas>
+  <div class="hint" id="hint" hidden></div>
+  <div class="toasts" id="toasts"></div>
+
+  <!-- touch controls -->
+  <div class="touch" id="touch" hidden>
+    <div class="stick" id="stick"><i id="knob"></i></div>
+    <div class="tbtns">
+      <button id="t-sniff" data-t="sniff">Sniff</button>
+      <button id="t-dive" data-t="dive">Dive</button>
+      <button id="t-dash" class="big" data-t="dash">Dash</button>
+    </div>
+  </div>
+
+  <!-- TITLE -->
+  <section class="screen" id="s-title">
+    <div class="panel title">
+      <div class="lang"><button data-lang="en" class="on">EN</button><button data-lang="zh">中文</button></div>
+      <p class="kicker" data-t="kicker">125th St &amp; Amsterdam Av · Harlem · after dark</p>
+      <h1>Rat<br>Run <span>125</span></h1>
+      <p class="lead" data-t="lead">You are a rat. The city just put its trash out. Grab what you can carry, dodge the patrol's flashlights, the cars and the bodega cat, and stash enough in your burrow before dawn.</p>
+      <ul class="how">
+        <li><kbd>WASD</kbd><kbd>↑↓←→</kbd> <span data-t="h-move">run</span></li>
+        <li><kbd>Shift</kbd> <span data-t="h-dash">dash (uses stamina)</span></li>
+        <li><kbd>E</kbd> <span data-t="h-sniff">sniff out food nearby</span></li>
+        <li><kbd>Space</kbd> <span data-t="h-dive">dive into a subway grate, pop out at another</span></li>
+        <li><i class="tip-wall"></i> <span data-t="h-wall">hug the walls and stay out of the lamplight: you're harder to spot</span></li>
+      </ul>
+      <button class="go" id="b-play" data-t="play">Play</button>
+      <p class="best" id="best"></p>
+      <p class="fine"><span data-t="fine">The streets, buildings, lamps, bins, restaurants and subway entrances are the real place, from NYC Open Data and OpenStreetMap.</span> <a href="../" data-t="sim">See the simulation →</a></p>
+    </div>
+  </section>
+
+  <!-- NIGHT INTRO / SUMMARY / PERKS / PAUSE / GAME OVER -->
+  <section class="screen" id="s-card" hidden>
+    <div class="panel card" id="card"></div>
+  </section>
+
+  <div class="loading" id="loading">Loading the street…</div>
+  <script type="module" src="game.js?v=1"></script>
+</body>
+</html>

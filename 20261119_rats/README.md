@@ -4,6 +4,7 @@
 
 **Live:** https://yz5149-stack.github.io/spatial_ai_gsapp/20261119_rats/
 **Semantic model:** [semantic-model.md](semantic-model.md)
+**Game:** [Rat Run 125](game/) (https://yz5149-stack.github.io/spatial_ai_gsapp/20261119_rats/game/): play one rat on the same street. Carry trash back to your burrow before dawn; dodge flashlights, cars, the garbage truck and the bodega cat; dive through subway grates; pick a perk each night. Keyboard or touch, English / 中文.
 
 Rats and a night rat patrol on 125th Street and Amsterdam Avenue, Harlem (Broadway to Morningside Av, W 122nd to W 129th St), drawn as an architectural axonometric from the city's surveyed building footprints, roof heights and ground elevations. Rats come out after dark: they smell food along the open air, run along walls, keep out of light and away from people, and remember where (and when) they found food and where they were chased. Inspectors walk the night with flashlights: they answer 311 calls, look for droppings and gnawing, follow the trail to the burrow, bait it and seal it; a rat caught in the beam is chased and is either caught or gets away (into its burrow, which gives the burrow away). Chases play in slow motion and the camera follows them. The city sets the table: when bags go out, whether trash is in bins, where lights and sidewalk sheds are.
 
