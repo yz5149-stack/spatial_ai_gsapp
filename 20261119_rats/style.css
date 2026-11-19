@@ -270,3 +270,5 @@ button.big { font-size: 15px; padding: 12px 22px; }
 .rules { display: flex; gap: 14px; align-items: center; }
 .rules select { max-width: 250px; }
 @media (max-width: 1250px) { .rules label { font-size: 0; gap: 0; } .rules select { font-size: 13px; max-width: 170px; } }
+@media (max-width: 1250px) and (min-width: 901px) { .headline { left: 16px; transform: none; max-width: 320px; } }
+@media (max-width: 900px) { .headline { left: 10px; transform: none; max-width: none; } }
