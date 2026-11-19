@@ -64,6 +64,7 @@ export async function makeGlobe(el, city, { onPick = null, onStatus = null } = {
   const food = scene.primitives.add(new Cesium.PointPrimitiveCollection());
   const agents = scene.primitives.add(new Cesium.PointPrimitiveCollection());
   const labels = scene.primitives.add(new Cesium.LabelCollection());
+  const trails = scene.primitives.add(new Cesium.PolylineCollection());
   const C = (css, a = 1) => Cesium.Color.fromCssColorString(css).withAlpha(a);
   const FRONT = Number.POSITIVE_INFINITY;
   let rebuildStatic = true;
@@ -98,7 +99,7 @@ export async function makeGlobe(el, city, { onPick = null, onStatus = null } = {
       const v = L.v[i]; if (!v) continue;
       const t = Math.min(1, Math.sqrt(v / max) * L.gain);
       if (t < 0.12) continue;
-      img.data[i * 4] = L.c[0]; img.data[i * 4 + 1] = L.c[1]; img.data[i * 4 + 2] = L.c[2]; img.data[i * 4 + 3] = Math.round(30 + 200 * t);
+      img.data[i * 4] = L.c[0]; img.data[i * 4 + 1] = L.c[1]; img.data[i * 4 + 2] = L.c[2]; img.data[i * 4 + 3] = Math.round(70 + 185 * t);
     }
     g.putImageData(img, 0, 0);
     const material = new Cesium.ImageMaterialProperty({ image: cv, transparent: true });
@@ -124,7 +125,7 @@ export async function makeGlobe(el, city, { onPick = null, onStatus = null } = {
     if (v === 'city') {
       viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
       const target = Cesium.Cartesian3.fromDegrees(center[0], center[1], 30 + geoid);
-      viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 900), { offset: new Cesium.HeadingPitchRange(Cesium.Math.toRadians(HEADING), Cesium.Math.toRadians(-38), 1650), duration: 1.6 });
+      viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 700), { offset: new Cesium.HeadingPitchRange(Cesium.Math.toRadians(HEADING), Cesium.Math.toRadians(-58), 1550), duration: 1.6 });
     }
   }
   setView('city');
@@ -152,13 +153,20 @@ export async function makeGlobe(el, city, { onPick = null, onStatus = null } = {
       if (!r.alive || r.mode === 'home') continue;
       seen.add(r.id);
       let p = ratPts.get(r.id);
-      if (!p) { p = agents.add({ pixelSize: 7, outlineColor: C('#120804'), outlineWidth: 1.5, disableDepthTestDistance: FRONT }); ratPts.set(r.id, p); }
+      if (!p) { p = agents.add({ pixelSize: 9, outlineColor: C('#ff6b3d', 0.35), outlineWidth: 4, disableDepthTestDistance: FRONT }); ratPts.set(r.id, p); }
       p.position = posOf(r.cell, 0.5); p.show = true;
-      p.color = r.deathAt >= 0 ? C('#c58bff') : C('#ff6b3d');
-      p.pixelSize = selected === r ? 12 : 7;
+      p.color = r.deathAt >= 0 ? C('#d9b3ff') : C('#ff7a4a');
+      p.outlineColor = r.deathAt >= 0 ? C('#c58bff', 0.35) : C('#ff6b3d', 0.35);
+      p.pixelSize = selected === r ? 14 : 9;
     }
     for (const [id, p] of ratPts) if (!seen.has(id)) p.show = false;
     labels.removeAll();
+    // the selected agent's trail and planned route
+    trails.removeAll();
+    if (selected && selected.trail.length > 1) {
+      trails.add({ positions: selected.trail.slice(-160).map((c) => posOf(c, 0.7)), width: 3, material: Cesium.Material.fromType('Color', { color: selected.kind === 'rat' ? C('#ff9a6a', 0.9) : C('#8fd3ff', 0.9) }) });
+      if (selected.path && selected.path.length > 1) trails.add({ positions: selected.path.slice(selected.pi ?? 0).map((c) => posOf(c, 0.7)), width: 2, material: Cesium.Material.fromType('PolylineDash', { color: C('#ffffff', 0.8), dashLength: 12 }) });
+    }
     for (const ins of sim.inspectors) {
       let p = insPts.get(ins.id);
       if (!p) { p = agents.add({ pixelSize: 11, color: C('#47b8ff'), outlineColor: C('#fff'), outlineWidth: 2, disableDepthTestDistance: FRONT }); insPts.set(ins.id, p); }
